@@ -76,10 +76,31 @@ return {
             return orig(contents, syntax, opts, ...)
         end
 
+        -- eslint and ts_ls both crash on pull diagnostics (textDocument/diagnostic) for
+        -- Next.js projects with an undefined plugin path. Swallow their errors silently;
+        -- both servers still push diagnostics fine via publishDiagnostics.
+        local orig_diag_handler = vim.lsp.handlers['textDocument/diagnostic']
+        vim.lsp.handlers['textDocument/diagnostic'] = function(err, result, ctx, config)
+            if err then
+                local client = vim.lsp.get_client_by_id(ctx.client_id)
+                if client and (client.name == 'ts_ls' or client.name == 'eslint') then return end
+            end
+            if orig_diag_handler then orig_diag_handler(err, result, ctx, config) end
+        end
+
         vim.api.nvim_create_autocmd('LspAttach', {
             group = vim.api.nvim_create_augroup('my.lsp', {}),
             callback = function(args)
                 local client = assert(vim.lsp.get_client_by_id(args.data.client_id))
+
+                if client.name == 'ts_ls' then
+                    client.server_capabilities.diagnosticProvider = nil
+                    client.server_capabilities.semanticTokensProvider = nil
+                end
+                if client.name == 'eslint' then
+                    client.server_capabilities.diagnosticProvider = nil
+                end
+
                 local buf    = args.buf
                 local map    = function(mode, lhs, rhs) vim.keymap.set(mode, lhs, rhs, { buffer = buf }) end
 
@@ -117,8 +138,12 @@ return {
                     and client:supports_method('textDocument/formatting')
                     and not excluded_filetypes[vim.bo[buf].filetype]
                 then
+                    -- Use a buffer-scoped augroup with clear=true so that each new
+                    -- attaching client replaces the previous formatter. Without this,
+                    -- every client that supports formatting adds its own BufWritePre
+                    -- autocmd and they all run sequentially on every save.
                     vim.api.nvim_create_autocmd('BufWritePre', {
-                        group = vim.api.nvim_create_augroup('my.lsp.format', { clear = false }),
+                        group = vim.api.nvim_create_augroup('my.lsp.format.' .. buf, { clear = true }),
                         buffer = buf,
                         callback = function()
                             vim.lsp.buf.format({ bufnr = buf, id = client.id, timeout_ms = 1000 })
