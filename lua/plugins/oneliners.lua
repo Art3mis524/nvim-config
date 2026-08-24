@@ -30,4 +30,14 @@ return {
 	    require('nvim-highlight-colors').setup({})
 	end
     },
+    {
+	'folke/ts-comments.nvim',
+	event = 'VeryLazy',
+	opts = {},
+    },
+    {
+	'lukas-reineke/indent-blankline.nvim',
+	main = 'ibl',
+	opts = {},
+    },
 }

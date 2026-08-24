@@ -88,6 +88,27 @@ return {
             if orig_diag_handler then orig_diag_handler(err, result, ctx, config) end
         end
 
+        -- nvim-lspconfig normally provides :LspRestart; this config doesn't use
+        -- that plugin, so replicate it: stop attached clients, then reload the
+        -- buffer so vim.lsp.enable()'s autostart reattaches a fresh one.
+        vim.api.nvim_create_user_command('LspRestart', function()
+            local buf = vim.api.nvim_get_current_buf()
+            local clients = vim.lsp.get_clients({ bufnr = buf })
+            if #clients == 0 then
+                vim.notify('No LSP clients attached to this buffer', vim.log.levels.WARN)
+                return
+            end
+            local names = {}
+            for _, client in ipairs(clients) do
+                table.insert(names, client.name)
+                client:stop(true)
+            end
+            vim.defer_fn(function()
+                vim.cmd.edit()
+                vim.notify('Restarted: ' .. table.concat(names, ', '))
+            end, 200)
+        end, {})
+
         vim.api.nvim_create_autocmd('LspAttach', {
             group = vim.api.nvim_create_augroup('my.lsp', {}),
             callback = function(args)
@@ -118,6 +139,7 @@ return {
                 map({ 'n', 'x' }, '<leader>f', function() vim.lsp.buf.format({ async = true }) end)
                 map('n', '<F4>', vim.lsp.buf.code_action)
                 map('n', '<leader>ca', vim.lsp.buf.code_action)
+                map('n', '<leader>lr', vim.cmd.LspRestart)
 
                 if client:supports_method('textDocument/documentHighlight') then
                     local highlight_augroup = vim.api.nvim_create_augroup('my.lsp.highlight', { clear = false })
@@ -133,7 +155,7 @@ return {
                     })
                 end
 
-                local excluded_filetypes = { php = true, c = true, cpp = true }
+                local excluded_filetypes = { php = true, c = true }
                 if not client:supports_method('textDocument/willSaveWaitUntil')
                     and client:supports_method('textDocument/formatting')
                     and not excluded_filetypes[vim.bo[buf].filetype]
