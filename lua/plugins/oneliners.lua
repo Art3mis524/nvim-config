@@ -25,6 +25,10 @@ return {
 	'tpope/vim-fugitive',
     },
     {
+	'lewis6991/gitsigns.nvim',
+	opts = {},
+    },
+    {
 	'brenoprata10/nvim-highlight-colors',
 	config = function()
 	    require('nvim-highlight-colors').setup({})
@@ -39,5 +43,18 @@ return {
 	'lukas-reineke/indent-blankline.nvim',
 	main = 'ibl',
 	opts = {},
+    },
+    {
+	'ray-x/lsp_signature.nvim',
+	event = 'VeryLazy',
+	opts = {
+	    hint_enable = false,
+	    floating_window = true,
+	    max_height = 12,
+	    max_width = 80,
+	    debug = true,
+	    log_path = vim.fn.stdpath('cache') .. '/lsp_signature.log',
+	    ignore_error = function() return false end,
+	},
     },
 }
