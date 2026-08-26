@@ -1,17 +1,11 @@
-local function enable_transparency()
-    vim.api.nvim_set_hl(0, "Normal",      { bg = "none" })
-    vim.api.nvim_set_hl(0, "NormalNC",    { bg = "none" })
-    vim.api.nvim_set_hl(0, "NormalFloat", { bg = "none" })
-    vim.api.nvim_set_hl(0, "FloatBorder", { bg = "none" })
-    vim.api.nvim_set_hl(0, "SignColumn",  { bg = "none" })
-    vim.api.nvim_set_hl(0, "LineNr",      { bg = "none" })
-end
 return {
     {
-	"folke/tokyonight.nvim",
+	"navarasu/onedark.nvim",
 	config = function ()
-	    vim.cmd.colorscheme "tokyonight"
-	    enable_transparency()
+	    require("onedark").setup({
+		style = "dark",
+	    })
+	    vim.cmd.colorscheme "onedark"
 	end
     },
     {
@@ -20,7 +14,7 @@ return {
 	    "nvim-tree/nvim-web-devicons",
 	},
 	opts = {
-	    theme = 'tokyonight',
+	    theme = 'onedark',
 	    sections = {
 		lualine_c = {
 		    { 'filename', path = 1 },
@@ -29,4 +23,3 @@ return {
 	}
     },
 }
-
