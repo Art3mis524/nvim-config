@@ -137,8 +137,18 @@ return {
                 map('n', '<leader>rn', vim.lsp.buf.rename)
                 map({ 'n', 'x' }, '<F3>', function() vim.lsp.buf.format({ async = true }) end)
                 map({ 'n', 'x' }, '<leader>f', function() vim.lsp.buf.format({ async = true }) end)
-                map('n', '<F4>', vim.lsp.buf.code_action)
-                map('n', '<leader>ca', vim.lsp.buf.code_action)
+                local function code_action_line()
+                    local line = vim.api.nvim_win_get_cursor(0)[1] - 1
+                    local line_len = #vim.api.nvim_buf_get_lines(0, line, line + 1, false)[1]
+                    vim.lsp.buf.code_action({
+                        range = {
+                            ['start'] = { line, 0 },
+                            ['end'] = { line, line_len },
+                        },
+                    })
+                end
+                map('n', '<F4>', code_action_line)
+                map('n', '<leader>ca', code_action_line)
                 map('n', '<leader>lr', vim.cmd.LspRestart)
 
                 if client:supports_method('textDocument/documentHighlight') then

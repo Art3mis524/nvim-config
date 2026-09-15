@@ -29,6 +29,22 @@ return {
 	opts = {},
     },
     {
+	'mg979/vim-visual-multi',
+    },
+    {
+	'akinsho/toggleterm.nvim',
+	version = '*',
+	opts = {
+	    direction = 'vertical',
+	    size = function(term)
+		if term.direction == 'vertical' then
+		    return math.floor(vim.o.columns * 0.4)
+		end
+	    end,
+	    open_mapping = [[<c-\>]],
+	},
+    },
+    {
 	'brenoprata10/nvim-highlight-colors',
 	config = function()
 	    require('nvim-highlight-colors').setup({})

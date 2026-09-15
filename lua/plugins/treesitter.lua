@@ -23,5 +23,11 @@ return {
         if #missing > 0 then
             vim.cmd('TSInstall ' .. table.concat(missing, ' '))
         end
+
+        vim.api.nvim_create_autocmd('FileType', {
+            callback = function()
+                pcall(vim.treesitter.start)
+            end,
+        })
     end,
 }

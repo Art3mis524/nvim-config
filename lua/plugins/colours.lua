@@ -1,11 +1,13 @@
 return {
     {
-	"navarasu/onedark.nvim",
+	"Art3mis524/cyberpunk",
 	config = function ()
-	    require("onedark").setup({
-		style = "dark",
+	    require("cyberpunk").setup({
+		code_style = {
+		    keywords = "bold",
+		},
 	    })
-	    vim.cmd.colorscheme "onedark"
+	    vim.cmd.colorscheme "cyberpunkNeon"
 	end
     },
     {
@@ -14,7 +16,7 @@ return {
 	    "nvim-tree/nvim-web-devicons",
 	},
 	opts = {
-	    theme = 'onedark',
+	    theme = 'cyberpunk',
 	    sections = {
 		lualine_c = {
 		    { 'filename', path = 1 },

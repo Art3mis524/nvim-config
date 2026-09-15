@@ -1,6 +1,6 @@
 -- Extra colorschemes purely for browsing (see the colorscheme picker keybind
--- in telescope.lua). onedark in colours.lua is the active default; none of
--- these apply themselves.
+-- in telescope.lua). cyberpunk/cyberpunkNeon in colours.lua is the active
+-- default; none of these apply themselves.
 return {
     { 'folke/tokyonight.nvim' },
     { 'catppuccin/nvim',       name = 'catppuccin' },
