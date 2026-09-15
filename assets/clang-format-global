@@ -1,0 +1,10 @@
+BasedOnStyle: LLVM
+BreakBeforeBraces: Allman
+NamespaceIndentation: All
+ColumnLimit: 120
+AllowShortFunctionsOnASingleLine: InlineOnly
+IndentWidth: 4
+BinPackParameters: false
+BinPackArguments: false
+AllowAllParametersOfDeclarationOnNextLine: false
+PenaltyReturnTypeOnItsOwnLine: 1000000
