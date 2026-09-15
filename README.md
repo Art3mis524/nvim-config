@@ -1,6 +1,6 @@
 # nvim-config
 
-Josh's personal Neovim configuration. Built around native LSP (`vim.lsp.config`/`vim.lsp.enable`,
+My personal Neovim configuration. Built around native LSP (`vim.lsp.config`/`vim.lsp.enable`,
 no `nvim-lspconfig`), `lazy.nvim` for plugins, and a custom colorscheme
 ([`cyberpunk`](https://github.com/Art3mis524/cyberpunk)).
 
