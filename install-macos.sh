@@ -141,20 +141,13 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-note "Installing cmake-language-server (pip)"
+note "Installing cmake-language-server (brew)"
 # ---------------------------------------------------------------------------
-PYTHON_BIN="$(brew --prefix python@3.13 2>/dev/null)/bin/python3.13"
-if [ -x "$PYTHON_BIN" ]; then
-    if "$PYTHON_BIN" -m pip install --user --break-system-packages cmake-language-server >/dev/null 2>&1 \
-        || "$PYTHON_BIN" -m pip install --user cmake-language-server >/dev/null 2>&1; then
-        ok "cmake-language-server"
-    else
-        warn "cmake-language-server failed to install via pip"
-        FAILED+=("cmake-language-server")
-    fi
+if brew install cmake-language-server >/dev/null 2>&1; then
+    ok "cmake-language-server"
 else
-    warn "python@3.13 not found on expected path, skipping cmake-language-server"
-    FAILED+=("cmake-language-server (python missing)")
+    warn "cmake-language-server failed to install via brew"
+    FAILED+=("cmake-language-server")
 fi
 
 # ---------------------------------------------------------------------------
@@ -200,7 +193,15 @@ fi
 note "Installing Neovim plugins (lazy.nvim sync)"
 # ---------------------------------------------------------------------------
 if command -v nvim >/dev/null 2>&1; then
-    if nvim --headless "+Lazy! sync" +qa >/tmp/nvim-install-sync.log 2>&1; then
+    NVIM_CONFIG_DIR="$(nvim --clean --headless "+lua io.write(vim.fn.stdpath('config'))" +qa 2>/dev/null)"
+    if [ "$(cd "$NVIM_CONFIG_DIR" 2>/dev/null && pwd -P)" != "$(cd "$SCRIPT_DIR" && pwd -P)" ]; then
+        warn "nvim loads its config from $NVIM_CONFIG_DIR, but this repo is at $SCRIPT_DIR"
+        warn "clone or symlink this repo to $NVIM_CONFIG_DIR, then re-run"
+        FAILED+=("config not at $NVIM_CONFIG_DIR, plugins not synced")
+    # Headless nvim exits 0 even if :Lazy doesn't exist, so fail explicitly
+    # when lazy.nvim never got loaded by the config.
+    elif nvim --headless "+lua if not package.loaded['lazy'] then vim.cmd('cquit 1') end" \
+            "+Lazy! sync" +qa >/tmp/nvim-install-sync.log 2>&1; then
         ok "plugins synced"
     else
         warn "plugin sync reported an issue — see /tmp/nvim-install-sync.log"
