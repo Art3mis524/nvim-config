@@ -2,12 +2,7 @@ return {
     'nvim-treesitter/nvim-treesitter',
     build = ':TSUpdate',
     config = function()
-        local wanted = {
-            'typescript', 'tsx', 'javascript',
-            'html', 'css', 'json', 'jsonc',
-            'lua', 'markdown', 'markdown_inline', 'bash',
-            'c', 'cpp', 'cmake', 'make', 'glsl',
-        }
+        local wanted = require('config.parsers')
         local ts_config = require('nvim-treesitter.config')
         local installed = ts_config.get_installed()
         local installed_set = {}
@@ -21,7 +16,12 @@ return {
             end
         end
         if #missing > 0 then
-            vim.cmd('TSInstall ' .. table.concat(missing, ' '))
+            local task = require('nvim-treesitter').install(missing)
+            -- Installs run in the background; headless nvim (the install
+            -- script) would quit before they finish, so block there instead.
+            if #vim.api.nvim_list_uis() == 0 then
+                task:wait(600000)
+            end
         end
 
         vim.api.nvim_create_autocmd('FileType', {

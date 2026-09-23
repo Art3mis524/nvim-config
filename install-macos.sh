@@ -2,10 +2,10 @@
 #
 # macOS counterpart to install.sh (which targets Arch/pacman). Sets up a
 # fresh Mac to use this Neovim config: Homebrew, language servers,
-# formatting tools, and the global .clang-format.
+# formatting tools, treesitter parsers, plugins and the global .clang-format.
 #
-# Assumes this repo is already cloned to ~/.config/nvim and this script is
-# being run from inside it.
+# Run it from inside a clone of this repo. If the clone isn't at
+# ~/.config/nvim, it gets symlinked there (an existing config is moved aside).
 #
 # Safe to re-run: every step either checks before acting or uses an
 # idempotent install flag, so running this again after adding new tools
@@ -38,6 +38,23 @@ append_once() {
     touch "$file"
     grep -qxF "$line" "$file" || echo "$line" >> "$file"
 }
+
+# ---------------------------------------------------------------------------
+note "Linking config into place"
+# ---------------------------------------------------------------------------
+NVIM_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/nvim"
+if [ "$(cd "$NVIM_CONFIG_DIR" 2>/dev/null && pwd -P)" = "$(cd "$SCRIPT_DIR" && pwd -P)" ]; then
+    ok "already in place"
+else
+    if [ -e "$NVIM_CONFIG_DIR" ] || [ -L "$NVIM_CONFIG_DIR" ]; then
+        BACKUP="$NVIM_CONFIG_DIR.bak-$(date +%Y%m%d-%H%M%S)"
+        mv "$NVIM_CONFIG_DIR" "$BACKUP"
+        warn "moved existing config to $BACKUP"
+    fi
+    mkdir -p "$(dirname "$NVIM_CONFIG_DIR")"
+    ln -s "$SCRIPT_DIR" "$NVIM_CONFIG_DIR"
+    ok "symlinked $NVIM_CONFIG_DIR -> $SCRIPT_DIR"
+fi
 
 # ---------------------------------------------------------------------------
 note "Xcode Command Line Tools"
@@ -78,6 +95,8 @@ note "Installing core packages (Homebrew formulae)"
 # ---------------------------------------------------------------------------
 CORE_PKGS=(
     git neovim ripgrep fd unzip wget cmake
+    tree-sitter-cli  # nvim-treesitter needs it to build parsers
+    alejandra        # Nix formatter used by nil
     llvm             # clangd (keg-only, PATH handled below)
     clang-format     # standalone, not keg-only
     rust rust-analyzer
@@ -169,14 +188,86 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-note "Not available via Homebrew (install manually if you need them)"
+note "Installing language servers not on Homebrew (into ~/.local/bin)"
 # ---------------------------------------------------------------------------
-NOT_ON_BREW=(nil glsl_analyzer c3-lsp serve-d)
-for pkg in "${NOT_ON_BREW[@]}"; do
-    SKIPPED+=("$pkg")
-done
-warn "no Homebrew formula for: ${NOT_ON_BREW[*]} — build from source if you need those filetypes"
-warn "your config will still work without them; those filetypes just won't get LSP support until installed"
+LOCAL_BIN="$HOME/.local/bin"
+mkdir -p "$LOCAL_BIN"
+append_once "export PATH=\"$LOCAL_BIN:\$PATH\"" "$HOME/.zprofile"
+export PATH="$LOCAL_BIN:$PATH"
+ARCH="$(uname -m)"
+TMP_DL="$(mktemp -d)"
+trap 'rm -rf "$TMP_DL"' EXIT
+
+# Downloads a GitHub release archive and installs one binary from it into
+# ~/.local/bin. Args: binary name, archive URL, binary's path inside archive.
+install_release_bin() {
+    local name="$1" url="$2" inner="$3" dir="$TMP_DL/$1"
+    mkdir -p "$dir"
+    curl -fsSL -o "$dir/archive" "$url" || return 1
+    case "$url" in
+        *.zip) unzip -qo "$dir/archive" -d "$dir" ;;
+        *)     tar -xzf "$dir/archive" -C "$dir" ;;
+    esac || return 1
+    install -m 755 "$dir/$inner" "$LOCAL_BIN/$name"
+}
+
+# glsl_analyzer: prebuilt for both Apple Silicon and Intel.
+if [ "$ARCH" = "arm64" ]; then GLSL_ASSET="aarch64-macos.zip"; else GLSL_ASSET="x86_64-macos.zip"; fi
+if install_release_bin glsl_analyzer \
+        "https://github.com/nolanderc/glsl_analyzer/releases/latest/download/$GLSL_ASSET" \
+        "bin/glsl_analyzer"; then
+    ok "glsl_analyzer"
+else
+    warn "glsl_analyzer failed to download"
+    FAILED+=("glsl_analyzer")
+fi
+
+# c3lsp: only published for Apple Silicon.
+if [ "$ARCH" = "arm64" ]; then
+    if install_release_bin c3lsp \
+            "https://github.com/pherrymason/c3-lsp/releases/latest/download/c3lsp-darwin-arm64.zip" \
+            "server/bin/release/c3lsp"; then
+        ok "c3lsp"
+    else
+        warn "c3lsp failed to download"
+        FAILED+=("c3lsp")
+    fi
+else
+    warn "c3lsp has no Intel Mac build, skipping"
+    SKIPPED+=("c3lsp (no Intel build)")
+fi
+
+# serve-d: only published for Intel, so Apple Silicon runs it under Rosetta.
+if [ "$ARCH" = "arm64" ] && ! arch -x86_64 /usr/bin/true >/dev/null 2>&1; then
+    warn "serve-d needs Rosetta on Apple Silicon: run 'softwareupdate --install-rosetta --agree-to-license', then re-run"
+    FAILED+=("serve-d (Rosetta missing)")
+else
+    SERVE_D_TAG="$(curl -fsSLI -o /dev/null -w '%{url_effective}' https://github.com/Pure-D/serve-d/releases/latest)"
+    SERVE_D_VER="${SERVE_D_TAG##*/v}"
+    if install_release_bin serve-d \
+            "https://github.com/Pure-D/serve-d/releases/download/v$SERVE_D_VER/serve-d_$SERVE_D_VER-osx-x86_64.tar.gz" \
+            "serve-d"; then
+        ok "serve-d $SERVE_D_VER"
+    else
+        warn "serve-d failed to download"
+        FAILED+=("serve-d")
+    fi
+fi
+
+# nil: Nix language server. It has no macOS release binaries and needs nix
+# itself to build, so it's only installed (from nixpkgs) when nix is present.
+if command -v nix >/dev/null 2>&1; then
+    if command -v nil >/dev/null 2>&1 \
+        || nix --extra-experimental-features 'nix-command flakes' profile install nixpkgs#nil >/dev/null 2>&1; then
+        ok "nil"
+    else
+        warn "nil failed to install from nixpkgs"
+        FAILED+=("nil")
+    fi
+else
+    warn "nix not installed, skipping nil (only needed for editing .nix files)"
+    SKIPPED+=("nil (needs nix)")
+fi
 
 # ---------------------------------------------------------------------------
 note "Installing global .clang-format"
@@ -190,22 +281,37 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-note "Installing Neovim plugins (lazy.nvim sync)"
+note "Installing Neovim plugins and treesitter parsers"
 # ---------------------------------------------------------------------------
+SYNC_LOG=/tmp/nvim-install-sync.log
 if command -v nvim >/dev/null 2>&1; then
-    NVIM_CONFIG_DIR="$(nvim --clean --headless "+lua io.write(vim.fn.stdpath('config'))" +qa 2>/dev/null)"
-    if [ "$(cd "$NVIM_CONFIG_DIR" 2>/dev/null && pwd -P)" != "$(cd "$SCRIPT_DIR" && pwd -P)" ]; then
-        warn "nvim loads its config from $NVIM_CONFIG_DIR, but this repo is at $SCRIPT_DIR"
-        warn "clone or symlink this repo to $NVIM_CONFIG_DIR, then re-run"
-        FAILED+=("config not at $NVIM_CONFIG_DIR, plugins not synced")
-    # Headless nvim exits 0 even if :Lazy doesn't exist, so fail explicitly
-    # when lazy.nvim never got loaded by the config.
-    elif nvim --headless "+lua if not package.loaded['lazy'] then vim.cmd('cquit 1') end" \
-            "+Lazy! sync" +qa >/tmp/nvim-install-sync.log 2>&1; then
-        ok "plugins synced"
+    # restore installs each plugin at the version pinned in lazy-lock.json, so
+    # a fresh machine matches the tested setup. Headless nvim exits 0 even if
+    # :Lazy doesn't exist, so fail explicitly when lazy.nvim never loaded.
+    if nvim --headless "+lua if not package.loaded['lazy'] then vim.cmd('cquit 1') end" \
+            "+Lazy! restore" "+Lazy! build LuaSnip" +qa >"$SYNC_LOG" 2>&1; then
+        ok "plugins installed at lockfile versions"
     else
-        warn "plugin sync reported an issue — see /tmp/nvim-install-sync.log"
-        FAILED+=("lazy.nvim plugin sync")
+        warn "plugin install reported an issue — see $SYNC_LOG"
+        FAILED+=("lazy.nvim plugin install")
+    fi
+
+    # The treesitter config installs missing parsers at startup (blocking when
+    # headless), so one more start fills any gaps; then check none are missing.
+    PARSER_CHECK="$TMP_DL/missing-parsers"
+    nvim --headless "+lua local have = {}
+        for _, p in ipairs(require('nvim-treesitter.config').get_installed()) do have[p] = true end
+        local miss = {}
+        for _, p in ipairs(require('config.parsers')) do if not have[p] then table.insert(miss, p) end end
+        vim.fn.writefile({ table.concat(miss, ' ') }, '$PARSER_CHECK')" +qa >>"$SYNC_LOG" 2>&1
+    if [ ! -f "$PARSER_CHECK" ]; then
+        warn "could not check treesitter parsers — see $SYNC_LOG"
+        FAILED+=("treesitter parser check")
+    elif [ -n "$(cat "$PARSER_CHECK")" ]; then
+        warn "treesitter parsers missing: $(cat "$PARSER_CHECK") — see $SYNC_LOG"
+        FAILED+=("treesitter parsers: $(cat "$PARSER_CHECK")")
+    else
+        ok "treesitter parsers installed"
     fi
 else
     warn "nvim not found even after package install — something went wrong above"
@@ -224,11 +330,12 @@ else
     done
 fi
 if [ ${#SKIPPED[@]} -gt 0 ]; then
-    warn "Not on Homebrew, install manually if you need them: ${SKIPPED[*]}"
+    warn "Skipped: ${SKIPPED[*]}"
 fi
 echo
-echo "Open a new terminal (so the PATH changes in ~/.zprofile take effect), then"
-echo "open nvim, restart it once fully, and check :Lazy and :checkhealth."
+echo "Open a new terminal (so the PATH changes in ~/.zprofile take effect) and"
+echo "nvim is ready to use. Set your terminal's font to JetBrainsMono Nerd Font"
+echo "if it isn't already, so icons render."
 
 if [ ${#FAILED[@]} -eq 0 ]; then
     exit 0

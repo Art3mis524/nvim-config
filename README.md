@@ -194,34 +194,34 @@ session available to complete that step live).
 
 ### `install-macos.sh` (macOS)
 
-Installs Xcode Command Line Tools and Homebrew itself if either is missing (Xcode's
-installer is a GUI prompt — the script tells you to re-run once it finishes). Homebrew's
-`shellenv` and any PATH additions it needs (`llvm`'s keg-only bin dir for `clangd`,
-Go's `$GOPATH/bin` for `templ`) get appended to `~/.zprofile` if not already present, so
-open a new terminal after running it.
+Run it from inside a clone of this repo, wherever that is: if the clone isn't at
+`~/.config/nvim` it gets symlinked there (any existing config there is moved to
+`~/.config/nvim.bak-<timestamp>` first). Installs Xcode Command Line Tools and Homebrew
+itself if either is missing (Xcode's installer is a GUI prompt — the script tells you to
+re-run once it finishes). Homebrew's `shellenv` and the PATH additions it needs (`llvm`'s
+keg-only bin dir for `clangd`, Go's `$GOPATH/bin` for `templ`, `~/.local/bin` for the
+servers below) get appended to `~/.zprofile` if not already present, so open a new
+terminal after running it. After that, `nvim` is ready to use.
 
 **What it installs:**
 
-- **Core (Homebrew):** git, neovim, ripgrep, fd, unzip, wget, cmake, llvm (for clangd),
-  clang-format, rust, rust-analyzer, go, gopls, lua-language-server, node, python@3.13,
-  zls, haskell-language-server
+- **Core (Homebrew):** git, neovim, ripgrep, fd, unzip, wget, cmake, tree-sitter-cli,
+  alejandra, llvm (for clangd), clang-format, rust, rust-analyzer, go, gopls,
+  lua-language-server, node, python@3.13, zls, haskell-language-server,
+  cmake-language-server
 - **Cask:** font-jetbrains-mono-nerd-font
 - **npm (global):** same six packages as `install.sh`
-- **pip (user, via the Homebrew python):** cmake-language-server
 - **go install:** templ
+- **GitHub release binaries into `~/.local/bin`:** `glsl_analyzer`, `c3lsp` (Apple
+  Silicon only), `serve-d` (Intel build; runs under Rosetta on Apple Silicon)
+- **`nil`**, from nixpkgs, only if `nix` is installed (it can't be built without it)
 - **Copies `assets/clang-format-global` to `~/.clang-format`**
-- **Runs `lazy.nvim` sync** to install every plugin
+- **Installs every plugin at the version pinned in `lazy-lock.json`** (`Lazy! restore`),
+  builds LuaSnip's `jsregexp`, installs the treesitter parsers listed in
+  `lua/config/parsers.lua`, and checks that none are missing
 
 No clipboard package is needed — macOS's built-in `pbcopy`/`pbpaste` work with
 `unnamedplus` out of the box.
 
-Two servers that need an AUR helper on Arch (`zls`, `haskell-language-server`) have real
-Homebrew formulae and get installed directly here — one advantage over the Arch script.
-Four don't have a Homebrew formula at all: `nil` (Nix), `glsl_analyzer` (GLSL), `c3-lsp`
-(C3), `serve-d` (D) — build from source if you need those filetypes.
-
-**Testing note:** syntax-checked, and every Homebrew formula/cask name verified against
-the live `formulae.brew.sh` API (including checking `keg_only` status, which is why only
-`llvm` gets special PATH handling) — but this script could not be run end-to-end, since
-no macOS machine was available while writing it. Run it once yourself and report back if
-anything needs adjusting.
+The script exits non-zero and lists anything that failed in its summary, so a clean
+"Everything installed cleanly" means the setup is complete.

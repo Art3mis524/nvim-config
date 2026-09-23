@@ -4,7 +4,7 @@ return {
         "hrsh7th/nvim-cmp",
         "hrsh7th/cmp-buffer",
         "hrsh7th/cmp-path",
-        "L3MON4D3/LuaSnip",
+        { "L3MON4D3/LuaSnip", build = "make install_jsregexp" },
         "saadparwaiz1/cmp_luasnip",
     },
     config = function()
@@ -234,8 +234,8 @@ return {
         vim.lsp.config['ts_ls'] = {
             cmd = { 'typescript-language-server', '--stdio' },
             filetypes = {
-                'javascript', 'javascriptreact', 'javascript.jsx',
-                'typescript', 'typescriptreact', 'typescript.tsx',
+                'javascript', 'javascriptreact',
+                'typescript', 'typescriptreact',
             },
             root_markers = { 'package.json', 'tsconfig.json', 'jsconfig.json', '.git' },
             capabilities = caps,
@@ -326,7 +326,8 @@ return {
         }
 
         vim.lsp.config['c3lsp'] = {
-            cmd = { 'c3-lsp' },
+            -- Upstream binary is c3lsp; some packages name it c3-lsp.
+            cmd = { vim.fn.executable('c3lsp') == 1 and 'c3lsp' or 'c3-lsp' },
             filetypes = { 'c3' },
             root_markers = { 'project.json', '.git' },
             capabilities = caps,
@@ -387,7 +388,7 @@ return {
 
         vim.lsp.config['gopls'] = {
             cmd = { 'gopls' },
-            filetypes = { 'go', 'gomod', 'gowork', 'gotmpl' },
+            filetypes = { 'go', 'gomod', 'gowork' },
             root_markers = { 'go.mod', 'go.work', '.git' },
             capabilities = caps,
             settings = {

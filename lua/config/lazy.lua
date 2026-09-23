@@ -21,4 +21,6 @@ require("lazy").setup({
     { import = "plugins" },
   },
   change_detection = { notify = false },
+  -- No plugins here need luarocks; disabling it avoids a hererocks error.
+  rocks = { enabled = false },
 })
