@@ -6,6 +6,8 @@ no `nvim-lspconfig`), `lazy.nvim` for plugins, and a custom colorscheme
 
 ## Quick start on a new machine
 
+**Arch-based Linux:**
+
 ```sh
 git clone https://github.com/Art3mis524/nvim-config.git ~/.config/nvim
 cd ~/.config/nvim
@@ -13,11 +15,21 @@ cd ~/.config/nvim
 nvim
 ```
 
-`install.sh` handles system packages, language servers, and the global `.clang-format`.
-See [Install script](#install-script) below for exactly what it does and doesn't cover.
-It targets Arch-based distros (`pacman`) — on other distros, install the equivalent
-packages listed in that section manually, then just run `nvim` (`lazy.nvim` bootstraps
-itself and reads `lazy-lock.json` for exact plugin versions).
+**macOS:**
+
+```sh
+git clone https://github.com/Art3mis524/nvim-config.git ~/.config/nvim
+cd ~/.config/nvim
+./install-macos.sh
+# open a new terminal so the PATH changes take effect, then:
+nvim
+```
+
+Both scripts handle system packages, language servers, and the global `.clang-format`.
+See [Install scripts](#install-scripts) below for exactly what each does and doesn't cover.
+On any other distro/OS, install the equivalent packages listed in that section manually,
+then just run `nvim` (`lazy.nvim` bootstraps itself and reads `lazy-lock.json` for exact
+plugin versions).
 
 ## Leader key
 
@@ -140,12 +152,15 @@ installed (several other themes are kept around purely for comparison) with `<le
 Several more colorschemes are installed purely for browsing via `<leader>ft` (see
 `lua/plugins/themes.lua`) — they're not active by default.
 
-## Install script
+## Install scripts
 
-`install.sh` is safe to re-run — every step checks before acting, so running it again
+Both scripts are safe to re-run — every step checks before acting, so running one again
 after adding new language servers to `lsp.lua` just fills in whatever's newly missing.
-It does **not** need to be run from a login shell with root — it calls `sudo` itself
-only for the pacman step.
+
+### `install.sh` (Arch-based Linux)
+
+Does **not** need to be run from a login shell with root — it calls `sudo` itself only
+for the pacman step.
 
 **What it installs:**
 
@@ -171,8 +186,42 @@ found. Install the equivalent packages from the list above using your distro's p
 manager, then the npm/pip/go/clang-format/Lazy-sync steps in the script are distro-agnostic
 if you want to run those portions by hand or adapt the script.
 
-**Testing note:** this script has been syntax-checked, every referenced package name
-verified against the actual pacman/npm/pip/go registries, and run end-to-end (the
-npm/pip/go/clang-format/Lazy-sync steps genuinely executed; the `sudo pacman` step
-was verified by confirming every package name resolves, since the test environment
-didn't have an interactive sudo session available to complete that step live).
+**Testing note:** syntax-checked, every referenced package name verified against the
+actual pacman/npm/pip/go registries, and run end-to-end (the npm/pip/go/clang-format/
+Lazy-sync steps genuinely executed; the `sudo pacman` step was verified by confirming
+every package name resolves, since the test environment didn't have an interactive sudo
+session available to complete that step live).
+
+### `install-macos.sh` (macOS)
+
+Installs Xcode Command Line Tools and Homebrew itself if either is missing (Xcode's
+installer is a GUI prompt — the script tells you to re-run once it finishes). Homebrew's
+`shellenv` and any PATH additions it needs (`llvm`'s keg-only bin dir for `clangd`,
+Go's `$GOPATH/bin` for `templ`) get appended to `~/.zprofile` if not already present, so
+open a new terminal after running it.
+
+**What it installs:**
+
+- **Core (Homebrew):** git, neovim, ripgrep, fd, unzip, wget, cmake, llvm (for clangd),
+  clang-format, rust, rust-analyzer, go, gopls, lua-language-server, node, python@3.13,
+  zls, haskell-language-server
+- **Cask:** font-jetbrains-mono-nerd-font
+- **npm (global):** same six packages as `install.sh`
+- **pip (user, via the Homebrew python):** cmake-language-server
+- **go install:** templ
+- **Copies `assets/clang-format-global` to `~/.clang-format`**
+- **Runs `lazy.nvim` sync** to install every plugin
+
+No clipboard package is needed — macOS's built-in `pbcopy`/`pbpaste` work with
+`unnamedplus` out of the box.
+
+Two servers that need an AUR helper on Arch (`zls`, `haskell-language-server`) have real
+Homebrew formulae and get installed directly here — one advantage over the Arch script.
+Four don't have a Homebrew formula at all: `nil` (Nix), `glsl_analyzer` (GLSL), `c3-lsp`
+(C3), `serve-d` (D) — build from source if you need those filetypes.
+
+**Testing note:** syntax-checked, and every Homebrew formula/cask name verified against
+the live `formulae.brew.sh` API (including checking `keg_only` status, which is why only
+`llvm` gets special PATH handling) — but this script could not be run end-to-end, since
+no macOS machine was available while writing it. Run it once yourself and report back if
+anything needs adjusting.
