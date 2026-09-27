@@ -231,8 +231,29 @@ return {
             },
         }
 
+        -- typescript-language-server needs a tsserver.js, and only looks in the
+        -- workspace's node_modules by default, so .ts files outside a project
+        -- fail to start it. Fall back to the global typescript the install
+        -- scripts put next to tsc (pinned to 6.x: TypeScript 7 is the native
+        -- rewrite and ships no tsserver.js).
+        local ts_init_options = {}
+        local tsc = vim.fn.exepath('tsc')
+        if tsc ~= '' then
+            local ts_lib
+            if vim.fn.has('win32') == 1 then
+                -- npm's Windows shims sit in the prefix dir, next to node_modules.
+                ts_lib = vim.fn.fnamemodify(tsc, ':h') .. '/node_modules/typescript/lib'
+            else
+                ts_lib = vim.fn.fnamemodify(vim.fn.resolve(tsc), ':h:h') .. '/lib'
+            end
+            if vim.fn.filereadable(ts_lib .. '/tsserver.js') == 1 then
+                ts_init_options.tsserver = { fallbackPath = ts_lib }
+            end
+        end
+
         vim.lsp.config['ts_ls'] = {
             cmd = { 'typescript-language-server', '--stdio' },
+            init_options = ts_init_options,
             filetypes = {
                 'javascript', 'javascriptreact',
                 'typescript', 'typescriptreact',
@@ -307,6 +328,19 @@ return {
             capabilities = caps,
         }
 
+        -- Compilers clangd may run to discover system include paths. On
+        -- Windows they live wherever Scoop/MSYS2 put them, so use the ones on
+        -- PATH (forward slashes: query-driver takes globs).
+        local query_driver = '/usr/bin/clang*,/usr/bin/clang++*,/usr/bin/gcc*,/usr/bin/g++*,/usr/bin/cc*,/usr/bin/c++*'
+        if vim.fn.has('win32') == 1 then
+            local drivers = {}
+            for _, exe in ipairs({ 'gcc', 'g++', 'clang', 'clang++' }) do
+                local path = vim.fn.exepath(exe)
+                if path ~= '' then table.insert(drivers, (path:gsub('\\', '/'))) end
+            end
+            query_driver = table.concat(drivers, ',')
+        end
+
         vim.lsp.config['clangd'] = {
             cmd = {
                 'clangd',
@@ -315,7 +349,7 @@ return {
                 '--header-insertion=never',
                 '--completion-style=detailed',
                 '--function-arg-placeholders',
-                '--query-driver=/usr/bin/clang*,/usr/bin/clang++*,/usr/bin/gcc*,/usr/bin/g++*,/usr/bin/cc*,/usr/bin/c++*',
+                '--query-driver=' .. query_driver,
             },
             filetypes = { 'c', 'cpp', 'objc', 'objcpp' },
             root_markers = { 'compile_commands.json', '.clangd', 'configure.ac', 'Makefile', '.git' },

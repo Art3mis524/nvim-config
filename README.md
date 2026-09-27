@@ -12,6 +12,7 @@ no `nvim-lspconfig`), `lazy.nvim` for plugins, and a custom colorscheme
 git clone https://github.com/Art3mis524/nvim-config.git ~/.config/nvim
 cd ~/.config/nvim
 ./install.sh
+# open a new terminal so the PATH changes take effect, then:
 nvim
 ```
 
@@ -25,7 +26,20 @@ cd ~/.config/nvim
 nvim
 ```
 
-Both scripts handle system packages, language servers, and the global `.clang-format`.
+**Windows** (PowerShell, not as admin; **not yet tested on a Windows machine**, see
+[below](#install-windowsps1-windows)):
+
+```powershell
+git clone https://github.com/Art3mis524/nvim-config.git $env:USERPROFILE\nvim-config
+cd $env:USERPROFILE\nvim-config
+powershell -ExecutionPolicy Bypass -File .\install-windows.ps1
+# open a new terminal so the PATH changes take effect, then:
+nvim
+```
+
+(No git yet? Download the repo as a zip from GitHub instead; the script installs git.)
+
+Each script handles system packages, language servers, and the global `.clang-format`.
 See [Install scripts](#install-scripts) below for exactly what each does and doesn't cover.
 On any other distro/OS, install the equivalent packages listed in that section manually,
 then just run `nvim` (`lazy.nvim` bootstraps itself and reads `lazy-lock.json` for exact
@@ -70,13 +84,14 @@ plugin versions).
 | `<F3>` / `<leader>f` | Format buffer |
 | `<F4>` / `<leader>ca` | Code actions — checks the whole current line, not just the exact cursor column |
 
-### Multi-cursor (`vim-visual-multi`)
+### Multi-cursor (`multicursor.nvim`)
 
 | Key | Action |
 |---|---|
 | `Ctrl-n` | Select word under cursor; repeat to add the next matching occurrence as another cursor |
 | `Ctrl-Down` / `Ctrl-Up` | Add a cursor directly below/above |
-| `Ctrl-LeftMouse` | Add a cursor where you click |
+| `Ctrl-LeftMouse` | Add a cursor where you click (drag to add several) |
+| `Ctrl-q` | Add/remove a cursor at the current position |
 | `Esc` | Exit multi-cursor mode |
 
 ### Editor basics worth knowing (built into Vim, not this config)
@@ -139,7 +154,7 @@ installed (several other themes are kept around purely for comparison) with `<le
 | `ray-x/lsp_signature.nvim` | Live parameter hints while typing a call |
 | `lewis6991/gitsigns.nvim` | Git change markers in the sign column |
 | `tpope/vim-fugitive` | Git commands |
-| `mg979/vim-visual-multi` | Multiple cursors |
+| `jake-stewart/multicursor.nvim` | Multiple cursors |
 | `akinsho/toggleterm.nvim` | Docked terminal (`Ctrl-\`) |
 | `folke/ts-comments.nvim` | Treesitter-aware `gc`/`gcc` comment toggling |
 | `folke/which-key.nvim` | Keybind hints |
@@ -154,43 +169,49 @@ Several more colorschemes are installed purely for browsing via `<leader>ft` (se
 
 ## Install scripts
 
-Both scripts are safe to re-run — every step checks before acting, so running one again
+All three scripts are safe to re-run — every step checks before acting, so running one again
 after adding new language servers to `lsp.lua` just fills in whatever's newly missing.
 
 ### `install.sh` (Arch-based Linux)
 
-Does **not** need to be run from a login shell with root — it calls `sudo` itself only
-for the pacman step.
+Run it as your normal user from inside a clone of this repo, wherever that is: if the
+clone isn't at `~/.config/nvim` it gets symlinked there (any existing config there is
+moved to `~/.config/nvim.bak-<timestamp>` first). It calls `sudo` itself only for the
+pacman step, which runs `pacman -Syu` (Arch doesn't support installing packages against
+a stale database), so it also brings the rest of the system up to date. PATH additions
+(`~/.local/bin`, Go's `$GOPATH/bin`) are appended to your login shell's profile
+(`~/.zprofile`, `~/.bash_profile` or `~/.profile`) if not already present, so open a new
+terminal after running it.
 
 **What it installs:**
 
 - **Core (pacman):** git, base-devel, neovim, ripgrep, fd, unzip, curl, wget, cmake,
-  clang (clangd + clang-format + clang-tidy), rust-analyzer, go, gopls,
-  lua-language-server, nodejs, npm, python, python-pip, wl-clipboard, xclip,
-  a Nerd Font (JetBrains Mono Nerd)
-- **npm (global):** typescript, typescript-language-server, intelephense,
-  vscode-langservers-extracted, vscode-json-languageserver, @tailwindcss/language-server
-- **pip (user):** cmake-language-server
+  tree-sitter-cli, clang (clangd + clang-format + clang-tidy), rust (skipped if `rustup`
+  is present), rust-analyzer, go, gopls, lua-language-server, nodejs, npm, python,
+  python-pipx, zls, haskell-language-server, wl-clipboard, xclip, a Nerd Font
+  (JetBrains Mono Nerd)
+- **npm (global):** same six packages as `install-macos.sh` (`typescript` is pinned to
+  6.x: 7.x is the native rewrite and has no `tsserver.js` for `ts_ls` to fall back on). If npm's global prefix isn't
+  writable (Arch's default is `/usr`), it's set to `~/.local` so no sudo is needed.
+- **pipx:** cmake-language-server
 - **go install:** templ
+- **GitHub release binaries into `~/.local/bin`:** `glsl_analyzer` and `alejandra`
+  (x86_64 and aarch64), `c3lsp` and `serve-d` (x86_64 only)
+- **`nil`**, from nixpkgs if `nix` is installed, otherwise `nil-git` from the AUR if
+  `paru` or `yay` is installed, otherwise skipped
 - **Copies `assets/clang-format-global` to `~/.clang-format`**
-- **Runs `lazy.nvim` sync** to install every plugin
+- **Installs every plugin at the version pinned in `lazy-lock.json`** (`Lazy! restore`),
+  builds LuaSnip's `jsregexp`, installs the treesitter parsers listed in
+  `lua/config/parsers.lua`, and checks that none are missing
 
-**What it deliberately doesn't install** (AUR-only or toolchain-heavy — install
-manually if you need that filetype's LSP support): `zls` (Zig), `nil` (Nix),
-`glsl_analyzer` (GLSL), `c3-lsp` (C3), `serve-d` (D), `haskell-language-server`.
-Your config works fine without them; those specific filetypes just won't get LSP
-support until you install the server yourself.
+On WSL it also reminds you to install the Nerd Font on the Windows side, since
+Windows Terminal doesn't use fonts installed inside WSL.
 
-**Non-Arch distros:** the script exits immediately with a message if `pacman` isn't
-found. Install the equivalent packages from the list above using your distro's package
-manager, then the npm/pip/go/clang-format/Lazy-sync steps in the script are distro-agnostic
-if you want to run those portions by hand or adapt the script.
+The script exits non-zero and lists anything that failed in its summary.
 
-**Testing note:** syntax-checked, every referenced package name verified against the
-actual pacman/npm/pip/go registries, and run end-to-end (the npm/pip/go/clang-format/
-Lazy-sync steps genuinely executed; the `sudo pacman` step was verified by confirming
-every package name resolves, since the test environment didn't have an interactive sudo
-session available to complete that step live).
+**Testing note:** syntax-checked, and every pacman/AUR package name and GitHub release
+URL (plus the paths inside each archive) verified to exist, but not yet run end-to-end
+on an Arch machine.
 
 ### `install-macos.sh` (macOS)
 
@@ -225,3 +246,62 @@ No clipboard package is needed — macOS's built-in `pbcopy`/`pbpaste` work with
 
 The script exits non-zero and lists anything that failed in its summary, so a clean
 "Everything installed cleanly" means the setup is complete.
+
+### `install-windows.ps1` (Windows)
+
+> **Untested on Windows.** So far the script has only been checked from macOS: it
+> parses cleanly and passes PowerShell 5.1 compatibility linting (PSScriptAnalyzer),
+> and every package name, download URL and archive layout it relies on was verified.
+> It has not had a complete end-to-end run on real Windows yet, so expect rough
+> edges and please report what breaks.
+
+Run it in a normal (non-admin) PowerShell from inside a clone of this repo: the clone is
+linked to `%LOCALAPPDATA%\nvim` with a directory junction (no admin or Developer Mode
+needed), and an existing config there is moved to `nvim.bak-<timestamp>` first. It sets
+the current user's execution policy to `RemoteSigned` (so Scoop's shims run), installs
+Scoop if missing, and adds `~\.local\bin` and Go's `bin` dir to the user PATH, so open a
+new terminal after running it. It's written for the Windows PowerShell 5.1 that ships
+with Windows, so no PowerShell 7 is needed.
+
+**What it installs:**
+
+- **Core (Scoop):** git, neovim, ripgrep, fd, cmake, make, mingw (gcc, used to compile
+  treesitter parsers, telescope-fzf-native and LuaSnip's jsregexp), tree-sitter, llvm
+  (clangd + clang-format), rustup-gnu (Rust via the GNU toolchain, so no Visual Studio),
+  rust-analyzer, go, lua-language-server, nodejs-lts, uv, zls
+- **Scoop `nerd-fonts` bucket:** JetBrainsMono-NF (per-user, no admin)
+- **npm (global):** same six packages as the other scripts
+- **uv tool:** cmake-language-server (uv fetches its own Python, so no Python installer
+  is needed)
+- **go install:** gopls, templ
+- **GitHub release binaries into `~\.local\bin`:** `glsl_analyzer`, `c3lsp`, `serve-d`
+- **Copies `assets/clang-format-global` to `~\.clang-format`**
+- **Installs plugins at lockfile versions, builds LuaSnip's `jsregexp`, installs and
+  checks the treesitter parsers**, the same as the macOS script
+
+**Not installed:** `nil` and `alejandra` (no Windows builds) and
+`haskell-language-server` (install it with [GHCup](https://www.haskell.org/ghcup/) if you
+need it).
+
+On ARM64 Windows it installs x64 builds of everything (they run under emulation): mingw
+only exists for x64, and the parsers and plugin libraries it compiles must match
+Neovim's architecture to load.
+
+Windows-specific bits in the config itself: toggleterm opens PowerShell instead of
+`cmd.exe`, treesitter compiles with `gcc` when MSVC isn't installed, and clangd's
+`--query-driver` uses whichever compilers are on PATH.
+
+## Smoke test
+
+`tests/smoke.lua` checks that a machine is actually set up, on any OS: no startup
+errors, every plugin installed, telescope-fzf-native and jsregexp built, every parser
+installed and loadable, every configured language server's command on PATH, and that
+`luals`, `ts_ls`, `clangd` and `gopls` really attach to a sample file.
+
+```sh
+nvim --headless "+luafile tests/smoke.lua"
+# servers you don't expect on this machine can be skipped:
+SMOKE_SKIP_SERVERS=nil_ls,hls nvim --headless "+luafile tests/smoke.lua"
+```
+
+It prints one line per check and exits non-zero if any fail.

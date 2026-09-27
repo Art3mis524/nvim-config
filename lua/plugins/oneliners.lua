@@ -80,6 +80,10 @@ return {
 		end
 	    end,
 	    open_mapping = [[<c-\>]],
+	    -- Windows defaults to cmd.exe; prefer PowerShell 7, then 5.1.
+	    shell = vim.fn.has('win32') == 1
+		and (vim.fn.executable('pwsh') == 1 and 'pwsh' or 'powershell')
+		or vim.o.shell,
 	},
     },
     {

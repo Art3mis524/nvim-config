@@ -140,7 +140,7 @@ note "Installing npm-based language servers"
 # ---------------------------------------------------------------------------
 if command -v npm >/dev/null 2>&1; then
     NPM_PKGS=(
-        typescript typescript-language-server
+        typescript@6 typescript-language-server  # 7.x has no tsserver.js; see ts_ls in lsp.lua
         intelephense
         vscode-langservers-extracted
         vscode-json-languageserver
