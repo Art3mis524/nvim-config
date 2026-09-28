@@ -146,7 +146,10 @@ would otherwise give them — via a treesitter query override at
 ## Theme
 
 Active colorscheme: [`cyberpunk`](https://github.com/Art3mis524/cyberpunk) (installed as
-a normal plugin dependency), currently on the `cyberpunkNeon` style variant.
+a normal plugin dependency), currently on the `cyberpunkNeon` style variant. The install
+scripts always pull its latest commit rather than the one pinned in `lazy-lock.json`, so
+re-running a script picks up theme changes; in an open nvim, `:Lazy update cyberpunk`
+does the same.
 Switch to the calmer variant any time with `:colorscheme cyberpunk`, or browse everything
 installed (several other themes are kept around purely for comparison) with `<leader>ft`.
 
@@ -213,7 +216,8 @@ terminal after running it.
   It needs Java 21+, so the script warns if the default JDK (`archlinux-java`) is older
 - **Copies `assets/clang-format-global` to `~/.clang-format`**
 - **Installs every plugin at the version pinned in `lazy-lock.json`** (`Lazy! restore`),
-  builds LuaSnip's `jsregexp`, installs the treesitter parsers listed in
+  except the `cyberpunk` theme, which is updated to its latest commit; builds LuaSnip's
+  `jsregexp`, installs the treesitter parsers listed in
   `lua/config/parsers.lua`, and checks that none are missing
 
 On WSL it also reminds you to install the Nerd Font on the Windows side, since
@@ -252,7 +256,8 @@ just a stub that asks you to install Java), so its bin dir is added too. After t
 - **`nil`**, from nixpkgs, only if `nix` is installed (it can't be built without it)
 - **Copies `assets/clang-format-global` to `~/.clang-format`**
 - **Installs every plugin at the version pinned in `lazy-lock.json`** (`Lazy! restore`),
-  builds LuaSnip's `jsregexp`, installs the treesitter parsers listed in
+  except the `cyberpunk` theme, which is updated to its latest commit; builds LuaSnip's
+  `jsregexp`, installs the treesitter parsers listed in
   `lua/config/parsers.lua`, and checks that none are missing
 
 No clipboard package is needed — macOS's built-in `pbcopy`/`pbpaste` work with
