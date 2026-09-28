@@ -1,7 +1,9 @@
-# Windows counterpart to install.sh (Arch) and install-macos.sh. Sets up a
-# fresh Windows machine to use this Neovim config: Scoop, language servers,
-# formatting tools, a C toolchain for treesitter parsers and plugin builds,
-# plugins and the global .clang-format.
+# Minimal Windows setup for this Neovim config (the windows-minimal branch):
+# only what C/C++, CMake, Make, Lua and Markdown editing need. Sets up Scoop,
+# language servers (clangd, cmake-language-server, lua-language-server),
+# clang-format, a C toolchain for treesitter parsers and plugin builds,
+# plugins and the global .clang-format. The full config, with every language
+# and macOS/Arch scripts, is on the master branch.
 #
 # Run it from inside a clone of this repo, in a normal (non-admin) PowerShell:
 #
@@ -177,36 +179,15 @@ $CorePkgs = @(
     'make', 'mingw',        # gcc + make for telescope-fzf-native and LuaSnip's jsregexp
     'tree-sitter',          # nvim-treesitter needs it to build parsers
     'llvm',                 # clangd + clang-format
-    'rustup-gnu',           # rustfmt; GNU toolchain so no Visual Studio is needed
-    'rust-analyzer',
-    'go',
     'lua-language-server',
-    'nodejs-lts',
-    'uv',                   # cmake-language-server (uv brings its own Python, no MSI installer)
-    'python',               # jdtls's launcher is a Python script
-    'zls'
+    'uv'                    # cmake-language-server (uv brings its own Python, no MSI installer)
 )
 foreach ($pkg in $CorePkgs) {
     if (-not (Install-ScoopApp $pkg)) { $Failed.Add("scoop: $pkg") }
 }
-# Scoop adds some apps' bin dirs to the user PATH (mingw, llvm, node, rustup)
+# Scoop adds some apps' bin dirs to the user PATH (mingw, llvm)
 # rather than shimming them; pick those up in this session too.
 $env:Path = [Environment]::GetEnvironmentVariable('Path', 'User') + ';' + [Environment]::GetEnvironmentVariable('Path', 'Machine')
-
-# ---------------------------------------------------------------------------
-Note 'Java (JDK + jdtls)'
-# ---------------------------------------------------------------------------
-# Scoop's jdtls shims whichever python.exe is on PATH, so it has to come after
-# python above; jdtls itself needs Java 21+, which the LTS JDK covers.
-if (-not (Test-Path (Join-Path $ScoopRoot 'buckets\java'))) {
-    scoop bucket add java | Out-Null
-}
-if (-not (Install-ScoopApp 'java/temurin-lts-jdk')) { $Failed.Add('scoop: temurin-lts-jdk') }
-if (-not (Install-ScoopApp 'jdtls')) { $Failed.Add('scoop: jdtls') }
-# The JDK sets JAVA_HOME and adds its bin dir for new terminals; pick those
-# up in this session too.
-$env:Path = [Environment]::GetEnvironmentVariable('Path', 'User') + ';' + [Environment]::GetEnvironmentVariable('Path', 'Machine')
-$env:JAVA_HOME = [Environment]::GetEnvironmentVariable('JAVA_HOME', 'User')
 
 # ---------------------------------------------------------------------------
 Note 'Nerd Font (Hermit)'
@@ -219,27 +200,7 @@ if (-not (Install-ScoopApp 'nerd-fonts/Hermit-NF')) {
     $Failed.Add('Nerd Font')
 }
 
-# ---------------------------------------------------------------------------
-Note 'Installing npm-based language servers'
-# ---------------------------------------------------------------------------
-if (Test-Command 'npm') {
-    $NpmPkgs = @(
-        'typescript@6', 'typescript-language-server',  # 7.x has no tsserver.js; see ts_ls in lsp.lua
-        'intelephense',
-        'vscode-langservers-extracted',
-        'vscode-json-languageserver',
-        '@tailwindcss/language-server'
-    )
-    foreach ($pkg in $NpmPkgs) {
-        npm install -g $pkg *> $null
-        if ($LASTEXITCODE -eq 0) { Ok "npm: $pkg" } else { Warn "npm: $pkg failed to install"; $Failed.Add("npm package: $pkg") }
-    }
-} else {
-    Warn 'npm not found, skipping npm-based language servers'
-    $Failed.Add('all npm language servers (npm missing)')
-}
-
-# ~/.local/bin holds uv tools and the release binaries below.
+# ~/.local/bin holds uv tools.
 $LocalBin = Join-Path $env:USERPROFILE '.local\bin'
 New-Item -ItemType Directory -Force -Path $LocalBin | Out-Null
 Add-UserPath $LocalBin
@@ -257,68 +218,9 @@ if (Test-Command 'cmake-language-server') {
     $Failed.Add('cmake-language-server (uv missing)')
 }
 
-# ---------------------------------------------------------------------------
-Note 'Installing gopls and templ (go install)'
-# ---------------------------------------------------------------------------
-if (Test-Command 'go') {
-    $GoBin = Join-Path (go env GOPATH) 'bin'
-    Add-UserPath $GoBin
-    foreach ($mod in @('golang.org/x/tools/gopls@latest', 'github.com/a-h/templ/cmd/templ@latest')) {
-        $name = ($mod -split '/')[-1] -replace '@.*$', ''
-        go install $mod *> $null
-        if ($LASTEXITCODE -eq 0) { Ok "$name (installed to $GoBin)" } else { Warn "$name failed to install"; $Failed.Add($name) }
-    }
-} else {
-    Warn 'go not found, skipping gopls and templ'
-    $Failed.Add('gopls and templ (go missing)')
-}
-
-# ---------------------------------------------------------------------------
-Note 'Installing language servers not on Scoop (into ~/.local/bin)'
-# ---------------------------------------------------------------------------
+# Scratch dir for the treesitter parser check below.
 $TmpDl = Join-Path $env:TEMP "nvim-install-$(Get-Random)"
 New-Item -ItemType Directory -Force -Path $TmpDl | Out-Null
-
-# Downloads a GitHub release zip and copies the files from one folder inside
-# it into ~/.local/bin (the whole folder, since some servers ship DLLs next
-# to the exe). Args: name, zip URL, folder inside the zip ('' for the root).
-function Install-ReleaseZip($name, $url, $inner) {
-    $dir = Join-Path $TmpDl $name
-    New-Item -ItemType Directory -Force -Path $dir | Out-Null
-    try {
-        Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile "$dir\archive.zip" -ErrorAction Stop
-        Expand-Archive -Path "$dir\archive.zip" -DestinationPath "$dir\out" -Force -ErrorAction Stop
-        Copy-Item -Path (Join-Path "$dir\out" "$inner\*") -Destination $LocalBin -Recurse -Force -ErrorAction Stop
-        return $true
-    } catch {
-        return $false
-    }
-}
-
-# glsl_analyzer: native builds for both x64 and ARM64.
-if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { $glslAsset = 'aarch64-windows.zip' } else { $glslAsset = 'x86_64-windows.zip' }
-if (Install-ReleaseZip 'glsl_analyzer' "https://github.com/nolanderc/glsl_analyzer/releases/latest/download/$glslAsset" 'bin') {
-    Ok 'glsl_analyzer'
-} else { Warn 'glsl_analyzer failed to download'; $Failed.Add('glsl_analyzer') }
-
-# c3lsp and serve-d: x64 only (they run under emulation on ARM64).
-if (Install-ReleaseZip 'c3lsp' 'https://github.com/pherrymason/c3-lsp/releases/latest/download/c3lsp-windows-amd64.zip' 'server\bin\release') {
-    Ok 'c3lsp'
-} else { Warn 'c3lsp failed to download'; $Failed.Add('c3lsp') }
-
-try {
-    $serveDVer = (Invoke-RestMethod -Uri 'https://api.github.com/repos/Pure-D/serve-d/releases/latest' -ErrorAction Stop).tag_name -replace '^v', ''
-} catch { $serveDVer = '' }
-if ($serveDVer -and (Install-ReleaseZip 'serve-d' "https://github.com/Pure-D/serve-d/releases/download/v$serveDVer/serve-d_$serveDVer-windows-x86_64.zip" '')) {
-    Ok "serve-d $serveDVer"
-} else { Warn 'serve-d failed to download'; $Failed.Add('serve-d') }
-
-# No Windows builds exist for these.
-Warn 'nil (Nix) and alejandra have no Windows builds, skipping'
-$Skipped.Add('nil (no Windows build)')
-$Skipped.Add('alejandra (no Windows build)')
-Warn 'haskell-language-server needs GHCup + MSYS2; install via https://www.haskell.org/ghcup/ if you need it'
-$Skipped.Add('haskell-language-server (install via GHCup)')
 
 # ---------------------------------------------------------------------------
 Note 'Installing global .clang-format'

@@ -76,18 +76,6 @@ return {
             return orig(contents, syntax, opts, ...)
         end
 
-        -- eslint and ts_ls both crash on pull diagnostics (textDocument/diagnostic) for
-        -- Next.js projects with an undefined plugin path. Swallow their errors silently;
-        -- both servers still push diagnostics fine via publishDiagnostics.
-        local orig_diag_handler = vim.lsp.handlers['textDocument/diagnostic']
-        vim.lsp.handlers['textDocument/diagnostic'] = function(err, result, ctx, config)
-            if err then
-                local client = vim.lsp.get_client_by_id(ctx.client_id)
-                if client and (client.name == 'ts_ls' or client.name == 'eslint') then return end
-            end
-            if orig_diag_handler then orig_diag_handler(err, result, ctx, config) end
-        end
-
         -- nvim-lspconfig normally provides :LspRestart; this config doesn't use
         -- that plugin, so replicate it: stop attached clients, then reload the
         -- buffer so vim.lsp.enable()'s autostart reattaches a fresh one.
@@ -113,14 +101,6 @@ return {
             group = vim.api.nvim_create_augroup('my.lsp', {}),
             callback = function(args)
                 local client = assert(vim.lsp.get_client_by_id(args.data.client_id))
-
-                if client.name == 'ts_ls' then
-                    client.server_capabilities.diagnosticProvider = nil
-                    client.server_capabilities.semanticTokensProvider = nil
-                end
-                if client.name == 'eslint' then
-                    client.server_capabilities.diagnosticProvider = nil
-                end
 
                 local buf    = args.buf
                 local map    = function(mode, lhs, rhs) vim.keymap.set(mode, lhs, rhs, { buffer = buf }) end
@@ -165,15 +145,11 @@ return {
                     })
                 end
 
-                local excluded_filetypes = { php = true, c = true }
-                -- jdtls is let through despite advertising willSaveWaitUntil:
-                -- it only uses that for its own save actions, not formatting.
-                -- It also registers formatting a moment after attaching, which
-                -- is why support is checked again at save time below.
-                local formats_on_save = client.name == 'jdtls'
-                    or (not client:supports_method('textDocument/willSaveWaitUntil')
-                        and client:supports_method('textDocument/formatting'))
-                if formats_on_save and not excluded_filetypes[vim.bo[buf].filetype] then
+                local excluded_filetypes = { c = true }
+                if not client:supports_method('textDocument/willSaveWaitUntil')
+                    and client:supports_method('textDocument/formatting')
+                    and not excluded_filetypes[vim.bo[buf].filetype]
+                then
                     -- Use a buffer-scoped augroup with clear=true so that each new
                     -- attaching client replaces the previous formatter. Without this,
                     -- every client that supports formatting adds its own BufWritePre
@@ -182,9 +158,7 @@ return {
                         group = vim.api.nvim_create_augroup('my.lsp.format.' .. buf, { clear = true }),
                         buffer = buf,
                         callback = function()
-                            if client:supports_method('textDocument/formatting', buf) then
-                                vim.lsp.buf.format({ bufnr = buf, id = client.id, timeout_ms = 1000 })
-                            end
+                            vim.lsp.buf.format({ bufnr = buf, id = client.id, timeout_ms = 1000 })
                         end,
                     })
                 end
@@ -211,112 +185,6 @@ return {
             },
         }
 
-        vim.lsp.config['cssls'] = {
-            cmd = { 'vscode-css-language-server', '--stdio' },
-            filetypes = { 'css', 'scss', 'less' },
-            root_markers = { 'package.json', '.git' },
-            capabilities = caps,
-            settings = {
-                css = { validate = true },
-                scss = { validate = true },
-                less = { validate = true },
-            },
-        }
-
-        vim.lsp.config['phpls'] = {
-            cmd = { 'intelephense', '--stdio' },
-            filetypes = { 'php' },
-            root_markers = { 'composer.json', '.git' },
-            capabilities = caps,
-            settings = {
-                intelephense = {
-                    files = {
-                        maxSize = 5000000,
-                    },
-                },
-            },
-        }
-
-        -- typescript-language-server needs a tsserver.js, and only looks in the
-        -- workspace's node_modules by default, so .ts files outside a project
-        -- fail to start it. Fall back to the global typescript the install
-        -- scripts put next to tsc (pinned to 6.x: TypeScript 7 is the native
-        -- rewrite and ships no tsserver.js).
-        local ts_init_options = {}
-        local tsc = vim.fn.exepath('tsc')
-        if tsc ~= '' then
-            local ts_lib
-            if vim.fn.has('win32') == 1 then
-                -- npm's Windows shims sit in the prefix dir, next to node_modules.
-                ts_lib = vim.fn.fnamemodify(tsc, ':h') .. '/node_modules/typescript/lib'
-            else
-                ts_lib = vim.fn.fnamemodify(vim.fn.resolve(tsc), ':h:h') .. '/lib'
-            end
-            if vim.fn.filereadable(ts_lib .. '/tsserver.js') == 1 then
-                ts_init_options.tsserver = { fallbackPath = ts_lib }
-            end
-        end
-
-        vim.lsp.config['ts_ls'] = {
-            cmd = { 'typescript-language-server', '--stdio' },
-            init_options = ts_init_options,
-            filetypes = {
-                'javascript', 'javascriptreact',
-                'typescript', 'typescriptreact',
-            },
-            root_markers = { 'package.json', 'tsconfig.json', 'jsconfig.json', '.git' },
-            capabilities = caps,
-            settings = {
-                completions = {
-                    completeFunctionCalls = true,
-                },
-            },
-        }
-
-        vim.lsp.config['zls'] = {
-            cmd = { 'zls' },
-            filetypes = { 'zig', 'zir' },
-            root_markers = { 'zls.json', 'build.zig', '.git' },
-            capabilities = caps,
-            settings = {
-                zls = {
-                    enable_build_on_save = true,
-                    build_on_save_step = "install",
-                    warn_style = false,
-                    enable_snippets = true,
-                }
-            }
-        }
-
-        vim.lsp.config['nil_ls'] = {
-            cmd = { 'nil' },
-            filetypes = { 'nix' },
-            root_markers = { 'flake.nix', 'default.nix', '.git' },
-            capabilities = caps,
-            settings = {
-                ['nil'] = {
-                    formatting = {
-                        command = { "alejandra" }
-                    }
-                }
-            }
-        }
-
-        vim.lsp.config['rust_analyzer'] = {
-            cmd = { 'rust-analyzer' },
-            filetypes = { 'rust' },
-            root_markers = { 'Cargo.toml', 'rust-project.json', '.git' },
-            capabilities = caps,
-            settings = {
-                ['rust-analyzer'] = {
-                    cargo = { allFeatures = true },
-                    formatting = {
-                        command = { "rustfmt" }
-                    },
-                },
-            },
-        }
-
         vim.lsp.config['cmake'] = {
             cmd = { 'cmake-language-server' },
             filetypes = { 'cmake' },
@@ -325,13 +193,6 @@ return {
             init_options = {
                 buildDirectory = 'build',
             },
-        }
-
-        vim.lsp.config['glsl_analyzer'] = {
-            cmd = { 'glsl_analyzer' },
-            filetypes = { 'glsl' },
-            root_markers = { '.git' },
-            capabilities = caps,
         }
 
         -- Compilers clangd may run to discover system include paths. On
@@ -365,177 +226,9 @@ return {
             },
         }
 
-        vim.lsp.config['c3lsp'] = {
-            -- Upstream binary is c3lsp; some packages name it c3-lsp.
-            cmd = { vim.fn.executable('c3lsp') == 1 and 'c3lsp' or 'c3-lsp' },
-            filetypes = { 'c3' },
-            root_markers = { 'project.json', '.git' },
-            capabilities = caps,
-        }
-
-        vim.lsp.config['serve_d'] = {
-            cmd = { 'serve-d' },
-            filetypes = { 'd' },
-            root_markers = { 'dub.sdl', 'dub.json', '.git' },
-            capabilities = caps,
-        }
-
-        vim.lsp.config['jsonls'] = {
-            cmd = { 'vscode-json-languageserver', '--stdio' },
-            filetypes = { 'json', 'jsonc' },
-            root_markers = { 'package.json', '.git', 'config.jsonc' },
-            capabilities = caps,
-        }
-
-        vim.lsp.config['tailwindcss'] = {
-            cmd = { 'tailwindcss-language-server', '--stdio' },
-            filetypes = {
-                'html', 'css', 'scss',
-                'javascript', 'javascriptreact',
-                'typescript', 'typescriptreact',
-            },
-            root_markers = { 'tailwind.config.js', 'tailwind.config.ts', 'package.json', '.git' },
-            capabilities = caps,
-        }
-
-        vim.lsp.config['eslint'] = {
-            cmd = { 'vscode-eslint-language-server', '--stdio' },
-            filetypes = {
-                'javascript', 'javascriptreact',
-                'typescript', 'typescriptreact',
-            },
-            root_markers = { 'eslint.config.js', '.eslintrc.json', '.eslintrc.js', 'package.json', '.git' },
-            capabilities = caps,
-            settings = {
-                workingDirectory = { mode = 'auto' },
-            },
-        }
-
-        vim.lsp.config['hls'] = {
-            cmd = { 'haskell-language-server-wrapper', '--lsp' },
-            filetypes = { 'haskell', 'lhaskell' },
-            root_markers = { 'stack.yaml', 'cabal.project', 'package.yaml', '*.cabal', 'hie.yaml', '.git' },
-            capabilities = caps,
-            settings = {
-                haskell = {
-                    formattingProvider = 'fourmolu',
-                    plugin = {
-                        semanticTokens = { globalOn = false }
-                    },
-                },
-            },
-        }
-
-        vim.lsp.config['gopls'] = {
-            cmd = { 'gopls' },
-            filetypes = { 'go', 'gomod', 'gowork' },
-            root_markers = { 'go.mod', 'go.work', '.git' },
-            capabilities = caps,
-            settings = {
-                gopls = {
-                    analyses = {
-                        unusedparams = false,
-                        ST1003 = false,
-                        ST1000 = false,
-                    },
-                    staticcheck = true,
-                },
-            },
-        }
-
-        vim.lsp.config['templ'] = {
-            cmd = { 'templ', 'lsp' },
-            filetypes = { 'templ' },
-            root_markers = { 'go.mod', '.git' },
-            capabilities = caps,
-        }
-
-        -- jdtls keeps its project index in a "workspace" (-data) directory, and
-        -- two projects sharing one confuse it, so give each project root its
-        -- own under Neovim's cache dir. That depends on the root, hence cmd as
-        -- a function rather than a list.
-        vim.lsp.config['jdtls'] = {
-            cmd = function(dispatchers, config)
-                local root = config.root_dir or vim.fn.getcwd()
-                local data_dir = vim.fn.stdpath('cache') .. '/jdtls/'
-                    .. vim.fn.fnamemodify(root, ':t') .. '-' .. vim.fn.sha256(root):sub(1, 8)
-                return vim.lsp.rpc.start({ 'jdtls', '-data', data_dir }, dispatchers, {
-                    cwd = config.cmd_cwd,
-                    env = config.cmd_env,
-                    detached = config.detached,
-                })
-            end,
-            filetypes = { 'java' },
-            -- Build-wrapper/settings files first so a multi-module project's
-            -- top level wins over a submodule's own pom.xml/build.gradle.
-            root_markers = {
-                { 'mvnw', 'gradlew', 'settings.gradle', 'settings.gradle.kts', '.git' },
-                { 'pom.xml', 'build.gradle', 'build.gradle.kts', 'build.xml' },
-            },
-            capabilities = caps,
-            init_options = {
-                -- Lets go-to-definition into JDK/library classes return
-                -- jdt:// URIs, which the BufReadCmd below knows how to open.
-                extendedClientCapabilities = { classFileContentsSupport = true },
-            },
-            settings = {
-                java = {
-                    signatureHelp = { enabled = true },
-                    -- Decompile classes that have no source jar.
-                    contentProvider = { preferred = 'fernflower' },
-                },
-            },
-        }
-
-        -- Some jdtls code actions come back as this client-side command rather
-        -- than a plain edit; nvim-jdtls normally provides it.
-        vim.lsp.commands['java.apply.workspaceEdit'] = function(command, ctx)
-            local client = assert(vim.lsp.get_client_by_id(ctx.client_id))
-            for _, edit in ipairs(command.arguments or {}) do
-                vim.lsp.util.apply_workspace_edit(edit, client.offset_encoding)
-            end
-        end
-
-        -- Open jdt:// URIs (classes inside jars and the JDK) by asking jdtls
-        -- for their source, or a decompiled version when there's none.
-        vim.api.nvim_create_autocmd('BufReadCmd', {
-            group = vim.api.nvim_create_augroup('my.jdtls', {}),
-            pattern = 'jdt://*',
-            callback = function(args)
-                local client = vim.lsp.get_clients({ name = 'jdtls' })[1]
-                if not client then
-                    vim.notify('jdtls is not running, cannot open ' .. args.match, vim.log.levels.WARN)
-                    return
-                end
-                local res = client:request_sync('java/classFileContents', { uri = args.match }, 10000, args.buf)
-                if not res or res.err or type(res.result) ~= 'string' then
-                    vim.notify('jdtls could not load ' .. args.match, vim.log.levels.WARN)
-                    return
-                end
-                local buf = args.buf
-                vim.bo[buf].modifiable = true
-                vim.api.nvim_buf_set_lines(buf, 0, -1, false, vim.split(res.result, '\r?\n'))
-                vim.bo[buf].swapfile = false
-                vim.bo[buf].buftype = 'nofile'
-                vim.bo[buf].modifiable = false
-                vim.bo[buf].filetype = 'java'
-                vim.lsp.buf_attach_client(buf, client.id)
-            end,
-        })
-
         vim.filetype.add({
             extension = {
                 h = 'cpp',
-                c3 = 'c3',
-                d = 'd',
-                templ = 'templ',
-                vert = 'glsl',
-                frag = 'glsl',
-                geom = 'glsl',
-                comp = 'glsl',
-                tesc = 'glsl',
-                tese = 'glsl',
-                glsl = 'glsl',
             },
         })
 

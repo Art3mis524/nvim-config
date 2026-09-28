@@ -1,49 +1,34 @@
-# nvim-config
+# nvim-config (windows-minimal)
 
-My personal Neovim configuration. Built around native LSP (`vim.lsp.config`/`vim.lsp.enable`,
-no `nvim-lspconfig`), `lazy.nvim` for plugins, and a custom colorscheme
-([`cyberpunk`](https://github.com/Art3mis524/cyberpunk)).
+My personal Neovim configuration, **trimmed down for Windows**: only C/C++, CMake, Make,
+Lua and Markdown are set up, and only what those need gets installed. Built around native
+LSP (`vim.lsp.config`/`vim.lsp.enable`, no `nvim-lspconfig`), `lazy.nvim` for plugins, and
+a custom colorscheme ([`cyberpunk`](https://github.com/Art3mis524/cyberpunk)).
 
-## Quick start on a new machine
+This is the `windows-minimal` branch (tagged `windows-minimal-v1`). The full config, with
+every language and the macOS/Arch install scripts, is on
+[`master`](https://github.com/Art3mis524/nvim-config).
 
-**Arch-based Linux:**
+## Quick start
 
-```sh
-git clone https://github.com/Art3mis524/nvim-config.git ~/.config/nvim
-cd ~/.config/nvim
-./install.sh
-# open a new terminal so the PATH changes take effect, then:
-nvim
-```
-
-**macOS:**
-
-```sh
-git clone https://github.com/Art3mis524/nvim-config.git ~/.config/nvim
-cd ~/.config/nvim
-./install-macos.sh
-# open a new terminal so the PATH changes take effect, then:
-nvim
-```
-
-**Windows** (PowerShell, not as admin; **not yet tested on a Windows machine**, see
-[below](#install-windowsps1-windows)):
+In PowerShell, not as admin (**not yet tested on a Windows machine**, see
+[below](#install-windowsps1)):
 
 ```powershell
-git clone https://github.com/Art3mis524/nvim-config.git $env:USERPROFILE\nvim-config
+git clone --branch windows-minimal-v1 https://github.com/Art3mis524/nvim-config.git $env:USERPROFILE\nvim-config
 cd $env:USERPROFILE\nvim-config
 powershell -ExecutionPolicy Bypass -File .\install-windows.ps1
 # open a new terminal so the PATH changes take effect, then:
 nvim
 ```
 
-(No git yet? Download the repo as a zip from GitHub instead; the script installs git.)
+(Cloning the tag leaves you on a "detached HEAD", which is fine for just using it. Clone
+with `--branch windows-minimal` instead if you want to commit changes to this version.
+No git yet? Download the tag as a zip from GitHub's Releases/Tags page; the script
+installs git.)
 
-Each script handles system packages, language servers, and the global `.clang-format`.
-See [Install scripts](#install-scripts) below for exactly what each does and doesn't cover.
-On any other distro/OS, install the equivalent packages listed in that section manually,
-then just run `nvim` (`lazy.nvim` bootstraps itself and reads `lazy-lock.json` for exact
-plugin versions).
+The script handles system packages, language servers, and the global `.clang-format`.
+See [`install-windows.ps1`](#install-windowsps1) below for exactly what it installs.
 
 ## Leader key
 
@@ -106,30 +91,25 @@ plugin versions).
 | `Ctrl-r` | Redo |
 | `-`/`:colorscheme <Tab>` | Not bound here — see `<leader>ft` above instead |
 
-## Languages with LSP configured
+## Languages
 
-C/C++ (`clangd`), Lua (`luals`), CSS/SCSS/Less (`cssls`), PHP (`phpls`), JS/JSX/TS/TSX (`ts_ls`),
-Zig (`zls`), Nix (`nil_ls`), Rust (`rust_analyzer`), CMake (`cmake`), GLSL (`glsl_analyzer`),
-C3 (`c3lsp`), D (`serve_d`), JSON/JSONC (`jsonls`), Tailwind (`tailwindcss`), ESLint (`eslint`),
-Haskell (`hls`), Go (`gopls`), templ (`templ`), Java (`jdtls`).
+| Language | Syntax (treesitter) | Language server |
+|---|---|---|
+| C / C++ | `c`, `cpp` | `clangd` |
+| CMake | `cmake` | `cmake-language-server` |
+| Make | `make` | — |
+| Lua | `lua` | `lua-language-server` |
+| Markdown | `markdown`, `markdown_inline` | — |
 
-Format-on-save is enabled for every language except C and PHP (C++ is included — see
+`.h` files are treated as C++. Format-on-save runs whenever the attached language server
+can format the file, except for C (C++ is included — see
 [Formatting](#formatting-clang-format) below).
-
-**Java notes:** `jdtls` is configured natively (no `nvim-jdtls` plugin). It finds the
-project root from `mvnw`/`gradlew`/`settings.gradle`/`.git` first, then
-`pom.xml`/`build.gradle`, and keeps each project's index in its own directory under
-`~/.cache/nvim/jdtls/`. Delete a project's folder there if jdtls gets confused about it.
-`gd` on a JDK or library class (e.g. `String`) opens its source, or a decompiled version
-when the jar has none, in a read-only buffer. The first open of a project is slow while
-jdtls imports and indexes it. Formatting uses jdtls's built-in Eclipse formatter with
-4-space indentation.
 
 ## Formatting (clang-format)
 
 C/C++ formatting uses `clang-format`, configured via `.clang-format` files:
 
-- `~/.clang-format` (installed by `install.sh` from `assets/clang-format-global`) —
+- `~/.clang-format` (installed by `install-windows.ps1` from `assets/clang-format-global`) —
   the default for any C/C++ project anywhere under your home directory, since
   clang-format walks up parent directories looking for the nearest `.clang-format`.
 - A project can override it with its own `.clang-format` closer to the source files.
@@ -176,92 +156,7 @@ installed (several other themes are kept around purely for comparison) with `<le
 Several more colorschemes are installed purely for browsing via `<leader>ft` (see
 `lua/plugins/themes.lua`) — they're not active by default.
 
-## Install scripts
-
-All three scripts are safe to re-run — every step checks before acting, so running one again
-after adding new language servers to `lsp.lua` just fills in whatever's newly missing.
-
-### `install.sh` (Arch-based Linux)
-
-Run it as your normal user from inside a clone of this repo, wherever that is: if the
-clone isn't at `~/.config/nvim` it gets symlinked there (any existing config there is
-moved to `~/.config/nvim.bak-<timestamp>` first). It calls `sudo` itself only for the
-pacman step, which runs `pacman -Syu` (Arch doesn't support installing packages against
-a stale database), so it also brings the rest of the system up to date. PATH additions
-(`~/.local/bin`, Go's `$GOPATH/bin`) are appended to your login shell's profile
-(`~/.zprofile`, `~/.bash_profile` or `~/.profile`) if not already present, so open a new
-terminal after running it.
-
-**What it installs:**
-
-- **Core (pacman):** git, base-devel, neovim, ripgrep, fd, unzip, curl, wget, cmake,
-  tree-sitter-cli, clang (clangd + clang-format + clang-tidy), rust (skipped if `rustup`
-  is present), rust-analyzer, go, gopls, lua-language-server, nodejs, npm, python,
-  python-pipx, zls, haskell-language-server, jdk-openjdk, wl-clipboard, xclip, a Nerd
-  Font (Hermit Nerd)
-- **npm (global):** same six packages as `install-macos.sh` (`typescript` is pinned to
-  6.x: 7.x is the native rewrite and has no `tsserver.js` for `ts_ls` to fall back on). If npm's global prefix isn't
-  writable (Arch's default is `/usr`), it's set to `~/.local` so no sudo is needed.
-- **pipx:** cmake-language-server
-- **go install:** templ
-- **GitHub release binaries into `~/.local/bin`:** `glsl_analyzer` and `alejandra`
-  (x86_64 and aarch64), `c3lsp` and `serve-d` (x86_64 only)
-- **`nil`**, from nixpkgs if `nix` is installed, otherwise `nil-git` from the AUR if
-  `paru` or `yay` is installed, otherwise skipped
-- **`jdtls`** (Java), from the AUR if `paru` or `yay` is installed, otherwise the
-  upstream build unpacked into `~/.local/share/jdtls` and linked into `~/.local/bin`.
-  It needs Java 21+, so the script warns if the default JDK (`archlinux-java`) is older
-- **Copies `assets/clang-format-global` to `~/.clang-format`**
-- **Installs every plugin at the version pinned in `lazy-lock.json`** (`Lazy! restore`),
-  builds LuaSnip's `jsregexp`, installs the treesitter parsers listed in
-  `lua/config/parsers.lua`, and checks that none are missing
-
-On WSL it also reminds you to install the Nerd Font on the Windows side, since
-Windows Terminal doesn't use fonts installed inside WSL.
-
-The script exits non-zero and lists anything that failed in its summary.
-
-**Testing note:** syntax-checked, and every pacman/AUR package name and GitHub release
-URL (plus the paths inside each archive) verified to exist, but not yet run end-to-end
-on an Arch machine.
-
-### `install-macos.sh` (macOS)
-
-Run it from inside a clone of this repo, wherever that is: if the clone isn't at
-`~/.config/nvim` it gets symlinked there (any existing config there is moved to
-`~/.config/nvim.bak-<timestamp>` first). Installs Xcode Command Line Tools and Homebrew
-itself if either is missing (Xcode's installer is a GUI prompt — the script tells you to
-re-run once it finishes). Homebrew's `shellenv` and the PATH additions it needs (`llvm`'s
-keg-only bin dir for `clangd`, Go's `$GOPATH/bin` for `templ`, `~/.local/bin` for the
-servers below) get appended to `~/.zprofile` if not already present, so open a new
-terminal after running it. `openjdk` is keg-only as well (macOS's own `/usr/bin/java` is
-just a stub that asks you to install Java), so its bin dir is added too. After that,
-`nvim` is ready to use.
-
-**What it installs:**
-
-- **Core (Homebrew):** git, neovim, ripgrep, fd, unzip, wget, cmake, tree-sitter-cli,
-  alejandra, llvm (for clangd), clang-format, rust, rust-analyzer, go, gopls,
-  lua-language-server, node, python@3.13, zls, haskell-language-server,
-  cmake-language-server, openjdk, jdtls
-- **Cask:** font-hurmit-nerd-font (Hermit; Nerd Fonts publishes it as "Hurmit")
-- **npm (global):** same six packages as `install.sh`
-- **go install:** templ
-- **GitHub release binaries into `~/.local/bin`:** `glsl_analyzer`, `c3lsp` (Apple
-  Silicon only), `serve-d` (Intel build; runs under Rosetta on Apple Silicon)
-- **`nil`**, from nixpkgs, only if `nix` is installed (it can't be built without it)
-- **Copies `assets/clang-format-global` to `~/.clang-format`**
-- **Installs every plugin at the version pinned in `lazy-lock.json`** (`Lazy! restore`),
-  builds LuaSnip's `jsregexp`, installs the treesitter parsers listed in
-  `lua/config/parsers.lua`, and checks that none are missing
-
-No clipboard package is needed — macOS's built-in `pbcopy`/`pbpaste` work with
-`unnamedplus` out of the box.
-
-The script exits non-zero and lists anything that failed in its summary, so a clean
-"Everything installed cleanly" means the setup is complete.
-
-### `install-windows.ps1` (Windows)
+## `install-windows.ps1`
 
 > **Untested on Windows.** So far the script has only been checked from macOS: it
 > parses cleanly and passes PowerShell 5.1 compatibility linting (PSScriptAnalyzer),
@@ -273,31 +168,24 @@ Run it in a normal (non-admin) PowerShell from inside a clone of this repo: the 
 linked to `%LOCALAPPDATA%\nvim` with a directory junction (no admin or Developer Mode
 needed), and an existing config there is moved to `nvim.bak-<timestamp>` first. It sets
 the current user's execution policy to `RemoteSigned` (so Scoop's shims run), installs
-Scoop if missing, and adds `~\.local\bin` and Go's `bin` dir to the user PATH, so open a
-new terminal after running it. It's written for the Windows PowerShell 5.1 that ships
-with Windows, so no PowerShell 7 is needed.
+Scoop if missing, and adds `~\.local\bin` to the user PATH, so open a new terminal after
+running it. It's written for the Windows PowerShell 5.1 that ships with Windows, so no
+PowerShell 7 is needed.
 
 **What it installs:**
 
 - **Core (Scoop):** git, neovim, ripgrep, fd, cmake, make, mingw (gcc, used to compile
   treesitter parsers, telescope-fzf-native and LuaSnip's jsregexp), tree-sitter, llvm
-  (clangd + clang-format), rustup-gnu (Rust via the GNU toolchain, so no Visual Studio),
-  rust-analyzer, go, lua-language-server, nodejs-lts, uv, python (jdtls's launcher is
-  a Python script), zls, jdtls
-- **Scoop `java` bucket:** temurin-lts-jdk (sets `JAVA_HOME`; jdtls needs Java 21+)
+  (clangd + clang-format), lua-language-server, uv
 - **Scoop `nerd-fonts` bucket:** Hermit-NF (per-user, no admin)
-- **npm (global):** same six packages as the other scripts
 - **uv tool:** cmake-language-server (uv fetches its own Python, so no Python installer
   is needed)
-- **go install:** gopls, templ
-- **GitHub release binaries into `~\.local\bin`:** `glsl_analyzer`, `c3lsp`, `serve-d`
 - **Copies `assets/clang-format-global` to `~\.clang-format`**
-- **Installs plugins at lockfile versions, builds LuaSnip's `jsregexp`, installs and
-  checks the treesitter parsers**, the same as the macOS script
+- **Installs every plugin at the version pinned in `lazy-lock.json`** (`Lazy! restore`),
+  builds LuaSnip's `jsregexp`, installs the treesitter parsers listed in
+  `lua/config/parsers.lua`, and checks that none are missing
 
-**Not installed:** `nil` and `alejandra` (no Windows builds) and
-`haskell-language-server` (install it with [GHCup](https://www.haskell.org/ghcup/) if you
-need it).
+The script is safe to re-run — every step checks before acting.
 
 On ARM64 Windows it installs x64 builds of everything (they run under emulation): mingw
 only exists for x64, and the parsers and plugin libraries it compiles must match
@@ -309,16 +197,15 @@ Windows-specific bits in the config itself: toggleterm opens PowerShell instead 
 
 ## Smoke test
 
-`tests/smoke.lua` checks that a machine is actually set up, on any OS: no startup
+`tests/smoke.lua` checks that the machine is actually set up: no startup
 errors, every plugin installed, telescope-fzf-native and jsregexp built, every parser
 installed and loadable, every configured language server's command on PATH, and that
-`luals`, `ts_ls`, `clangd`, `gopls` and `jdtls` really attach to a sample file (jdtls
-gets up to 90 seconds, since it starts a JVM).
+`luals`, `clangd` and `cmake` really attach to a sample file.
 
-```sh
+```powershell
 nvim --headless "+luafile tests/smoke.lua"
 # servers you don't expect on this machine can be skipped:
-SMOKE_SKIP_SERVERS=nil_ls,hls nvim --headless "+luafile tests/smoke.lua"
+$env:SMOKE_SKIP_SERVERS = 'cmake'; nvim --headless "+luafile tests/smoke.lua"
 ```
 
 It prints one line per check and exits non-zero if any fail.
