@@ -166,10 +166,14 @@ return {
                 end
 
                 local excluded_filetypes = { php = true, c = true }
-                if not client:supports_method('textDocument/willSaveWaitUntil')
-                    and client:supports_method('textDocument/formatting')
-                    and not excluded_filetypes[vim.bo[buf].filetype]
-                then
+                -- jdtls is let through despite advertising willSaveWaitUntil:
+                -- it only uses that for its own save actions, not formatting.
+                -- It also registers formatting a moment after attaching, which
+                -- is why support is checked again at save time below.
+                local formats_on_save = client.name == 'jdtls'
+                    or (not client:supports_method('textDocument/willSaveWaitUntil')
+                        and client:supports_method('textDocument/formatting'))
+                if formats_on_save and not excluded_filetypes[vim.bo[buf].filetype] then
                     -- Use a buffer-scoped augroup with clear=true so that each new
                     -- attaching client replaces the previous formatter. Without this,
                     -- every client that supports formatting adds its own BufWritePre
@@ -178,7 +182,9 @@ return {
                         group = vim.api.nvim_create_augroup('my.lsp.format.' .. buf, { clear = true }),
                         buffer = buf,
                         callback = function()
-                            vim.lsp.buf.format({ bufnr = buf, id = client.id, timeout_ms = 1000 })
+                            if client:supports_method('textDocument/formatting', buf) then
+                                vim.lsp.buf.format({ bufnr = buf, id = client.id, timeout_ms = 1000 })
+                            end
                         end,
                     })
                 end
@@ -443,6 +449,79 @@ return {
             root_markers = { 'go.mod', '.git' },
             capabilities = caps,
         }
+
+        -- jdtls keeps its project index in a "workspace" (-data) directory, and
+        -- two projects sharing one confuse it, so give each project root its
+        -- own under Neovim's cache dir. That depends on the root, hence cmd as
+        -- a function rather than a list.
+        vim.lsp.config['jdtls'] = {
+            cmd = function(dispatchers, config)
+                local root = config.root_dir or vim.fn.getcwd()
+                local data_dir = vim.fn.stdpath('cache') .. '/jdtls/'
+                    .. vim.fn.fnamemodify(root, ':t') .. '-' .. vim.fn.sha256(root):sub(1, 8)
+                return vim.lsp.rpc.start({ 'jdtls', '-data', data_dir }, dispatchers, {
+                    cwd = config.cmd_cwd,
+                    env = config.cmd_env,
+                    detached = config.detached,
+                })
+            end,
+            filetypes = { 'java' },
+            -- Build-wrapper/settings files first so a multi-module project's
+            -- top level wins over a submodule's own pom.xml/build.gradle.
+            root_markers = {
+                { 'mvnw', 'gradlew', 'settings.gradle', 'settings.gradle.kts', '.git' },
+                { 'pom.xml', 'build.gradle', 'build.gradle.kts', 'build.xml' },
+            },
+            capabilities = caps,
+            init_options = {
+                -- Lets go-to-definition into JDK/library classes return
+                -- jdt:// URIs, which the BufReadCmd below knows how to open.
+                extendedClientCapabilities = { classFileContentsSupport = true },
+            },
+            settings = {
+                java = {
+                    signatureHelp = { enabled = true },
+                    -- Decompile classes that have no source jar.
+                    contentProvider = { preferred = 'fernflower' },
+                },
+            },
+        }
+
+        -- Some jdtls code actions come back as this client-side command rather
+        -- than a plain edit; nvim-jdtls normally provides it.
+        vim.lsp.commands['java.apply.workspaceEdit'] = function(command, ctx)
+            local client = assert(vim.lsp.get_client_by_id(ctx.client_id))
+            for _, edit in ipairs(command.arguments or {}) do
+                vim.lsp.util.apply_workspace_edit(edit, client.offset_encoding)
+            end
+        end
+
+        -- Open jdt:// URIs (classes inside jars and the JDK) by asking jdtls
+        -- for their source, or a decompiled version when there's none.
+        vim.api.nvim_create_autocmd('BufReadCmd', {
+            group = vim.api.nvim_create_augroup('my.jdtls', {}),
+            pattern = 'jdt://*',
+            callback = function(args)
+                local client = vim.lsp.get_clients({ name = 'jdtls' })[1]
+                if not client then
+                    vim.notify('jdtls is not running, cannot open ' .. args.match, vim.log.levels.WARN)
+                    return
+                end
+                local res = client:request_sync('java/classFileContents', { uri = args.match }, 10000, args.buf)
+                if not res or res.err or type(res.result) ~= 'string' then
+                    vim.notify('jdtls could not load ' .. args.match, vim.log.levels.WARN)
+                    return
+                end
+                local buf = args.buf
+                vim.bo[buf].modifiable = true
+                vim.api.nvim_buf_set_lines(buf, 0, -1, false, vim.split(res.result, '\r?\n'))
+                vim.bo[buf].swapfile = false
+                vim.bo[buf].buftype = 'nofile'
+                vim.bo[buf].modifiable = false
+                vim.bo[buf].filetype = 'java'
+                vim.lsp.buf_attach_client(buf, client.id)
+            end,
+        })
 
         vim.filetype.add({
             extension = {

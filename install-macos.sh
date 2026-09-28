@@ -106,6 +106,8 @@ CORE_PKGS=(
     python@3.13
     zls
     haskell-language-server
+    openjdk          # JDK (keg-only, PATH handled below)
+    jdtls            # Java language server; runs on openjdk even off PATH
 )
 if brew install "${CORE_PKGS[@]}"; then
     ok "core packages installed"
@@ -123,6 +125,18 @@ if [ -d "$LLVM_BIN" ]; then
 else
     warn "could not resolve llvm's bin directory — clangd may not be on PATH"
     FAILED+=("clangd on PATH")
+fi
+
+# openjdk is keg-only too (macOS ships a /usr/bin/java stub that just asks
+# you to install Java), so put the real java/javac first on PATH.
+JDK_BIN="$(brew --prefix openjdk 2>/dev/null)/bin"
+if [ -x "$JDK_BIN/java" ]; then
+    export PATH="$JDK_BIN:$PATH"
+    append_once "export PATH=\"$JDK_BIN:\$PATH\"" "$HOME/.zprofile"
+    ok "added $JDK_BIN to PATH (java, javac)"
+else
+    warn "could not resolve openjdk's bin directory — java may not be on PATH"
+    FAILED+=("java on PATH")
 fi
 
 # ---------------------------------------------------------------------------

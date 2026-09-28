@@ -84,6 +84,7 @@ CORE_PKGS=(
     python python-pipx
     zls
     haskell-language-server
+    jdk-openjdk      # JDK; jdtls needs Java 21+ to run
     wl-clipboard xclip
     ttf-jetbrains-mono-nerd
 )
@@ -279,6 +280,41 @@ elif [ -n "$AUR_HELPER" ]; then
 else
     warn "neither nix nor an AUR helper found, skipping nil (only needed for editing .nix files)"
     SKIPPED+=("nil (needs nix or an AUR helper)")
+fi
+
+# jdtls: Java language server, only in the AUR. Without an AUR helper, fall
+# back to the upstream build, unpacked into ~/.local/share/jdtls and linked
+# into ~/.local/bin (its launcher resolves the symlink to find its files).
+if command -v jdtls >/dev/null 2>&1; then
+    ok "jdtls (already installed)"
+elif [ -n "$AUR_HELPER" ]; then
+    if "$AUR_HELPER" -S --needed --noconfirm jdtls; then
+        ok "jdtls (from the AUR via $AUR_HELPER)"
+    else
+        warn "jdtls failed to install from the AUR"
+        FAILED+=("jdtls")
+    fi
+else
+    JDTLS_DIR="$HOME/.local/share/jdtls"
+    mkdir -p "$TMP_DL/jdtls"
+    if curl -fsSL -o "$TMP_DL/jdtls.tar.gz" \
+            https://download.eclipse.org/jdtls/snapshots/jdt-language-server-latest.tar.gz \
+        && tar -xzf "$TMP_DL/jdtls.tar.gz" -C "$TMP_DL/jdtls"; then
+        rm -rf "$JDTLS_DIR"
+        mv "$TMP_DL/jdtls" "$JDTLS_DIR"
+        ln -sf "$JDTLS_DIR/bin/jdtls" "$LOCAL_BIN/jdtls"
+        ok "jdtls (upstream build in $JDTLS_DIR)"
+    else
+        warn "jdtls failed to download"
+        FAILED+=("jdtls")
+    fi
+fi
+# jdtls refuses to start on Java older than 21, and archlinux-java may still
+# point at an older JDK if one was installed before.
+JAVA_MAJOR="$(java -version 2>&1 | sed -n 's/.*version "\([0-9]*\).*/\1/p' | head -1)"
+if [ -n "$JAVA_MAJOR" ] && [ "$JAVA_MAJOR" -lt 21 ]; then
+    warn "default java is $JAVA_MAJOR, jdtls needs 21+: pick a newer one from 'archlinux-java status' with 'sudo archlinux-java set <name>'"
+    FAILED+=("java 21+ as default JDK")
 fi
 
 # ---------------------------------------------------------------------------

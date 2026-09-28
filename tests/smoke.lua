@@ -68,10 +68,12 @@ for name in pairs(vim.lsp.config._configs) do
     if name ~= '*' then table.insert(servers, name) end
 end
 table.sort(servers)
+-- Servers whose cmd is a function (so the executable can't be read off it).
+local function_cmd_exes = { jdtls = 'jdtls' }
 local runnable = {}
 for _, name in ipairs(servers) do
     local cmd = vim.lsp.config[name].cmd
-    local exe = type(cmd) == 'table' and cmd[1] or nil
+    local exe = type(cmd) == 'table' and cmd[1] or function_cmd_exes[name]
     if skip[name] then
         out('  skip: ' .. name .. ' (SMOKE_SKIP_SERVERS)')
     elseif exe then
@@ -89,6 +91,8 @@ local samples = {
     { server = 'ts_ls',   file = 'sample.ts',  text = { 'const x: number = 1;', 'export default x;' } },
     { server = 'clangd',  file = 'sample.cpp', text = { 'int main() { return 0; }' } },
     { server = 'gopls',   file = 'sample.go',  text = { 'package main', '', 'func main() {}' } },
+    -- jdtls boots a JVM, so give it longer.
+    { server = 'jdtls',   file = 'Sample.java', text = { 'class Sample {}' }, timeout = 90000 },
 }
 for _, s in ipairs(samples) do
     if runnable[s.server] then
@@ -96,7 +100,7 @@ for _, s in ipairs(samples) do
         vim.fn.writefile(s.text, path)
         vim.cmd.edit(vim.fn.fnameescape(path))
         local buf = vim.api.nvim_get_current_buf()
-        local attached = vim.wait(30000, function()
+        local attached = vim.wait(s.timeout or 30000, function()
             return #vim.lsp.get_clients({ bufnr = buf, name = s.server }) > 0
         end, 200)
         check(attached, s.server .. ' attached to ' .. s.file)

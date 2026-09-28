@@ -183,6 +183,7 @@ $CorePkgs = @(
     'lua-language-server',
     'nodejs-lts',
     'uv',                   # cmake-language-server (uv brings its own Python, no MSI installer)
+    'python',               # jdtls's launcher is a Python script
     'zls'
 )
 foreach ($pkg in $CorePkgs) {
@@ -191,6 +192,21 @@ foreach ($pkg in $CorePkgs) {
 # Scoop adds some apps' bin dirs to the user PATH (mingw, llvm, node, rustup)
 # rather than shimming them; pick those up in this session too.
 $env:Path = [Environment]::GetEnvironmentVariable('Path', 'User') + ';' + [Environment]::GetEnvironmentVariable('Path', 'Machine')
+
+# ---------------------------------------------------------------------------
+Note 'Java (JDK + jdtls)'
+# ---------------------------------------------------------------------------
+# Scoop's jdtls shims whichever python.exe is on PATH, so it has to come after
+# python above; jdtls itself needs Java 21+, which the LTS JDK covers.
+if (-not (Test-Path (Join-Path $ScoopRoot 'buckets\java'))) {
+    scoop bucket add java | Out-Null
+}
+if (-not (Install-ScoopApp 'java/temurin-lts-jdk')) { $Failed.Add('scoop: temurin-lts-jdk') }
+if (-not (Install-ScoopApp 'jdtls')) { $Failed.Add('scoop: jdtls') }
+# The JDK sets JAVA_HOME and adds its bin dir for new terminals; pick those
+# up in this session too.
+$env:Path = [Environment]::GetEnvironmentVariable('Path', 'User') + ';' + [Environment]::GetEnvironmentVariable('Path', 'Machine')
+$env:JAVA_HOME = [Environment]::GetEnvironmentVariable('JAVA_HOME', 'User')
 
 # ---------------------------------------------------------------------------
 Note 'Nerd Font (JetBrains Mono)'

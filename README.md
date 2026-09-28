@@ -111,10 +111,19 @@ plugin versions).
 C/C++ (`clangd`), Lua (`luals`), CSS/SCSS/Less (`cssls`), PHP (`phpls`), JS/JSX/TS/TSX (`ts_ls`),
 Zig (`zls`), Nix (`nil_ls`), Rust (`rust_analyzer`), CMake (`cmake`), GLSL (`glsl_analyzer`),
 C3 (`c3lsp`), D (`serve_d`), JSON/JSONC (`jsonls`), Tailwind (`tailwindcss`), ESLint (`eslint`),
-Haskell (`hls`), Go (`gopls`), templ (`templ`).
+Haskell (`hls`), Go (`gopls`), templ (`templ`), Java (`jdtls`).
 
 Format-on-save is enabled for every language except C and PHP (C++ is included — see
 [Formatting](#formatting-clang-format) below).
+
+**Java notes:** `jdtls` is configured natively (no `nvim-jdtls` plugin). It finds the
+project root from `mvnw`/`gradlew`/`settings.gradle`/`.git` first, then
+`pom.xml`/`build.gradle`, and keeps each project's index in its own directory under
+`~/.cache/nvim/jdtls/`. Delete a project's folder there if jdtls gets confused about it.
+`gd` on a JDK or library class (e.g. `String`) opens its source, or a decompiled version
+when the jar has none, in a read-only buffer. The first open of a project is slow while
+jdtls imports and indexes it. Formatting uses jdtls's built-in Eclipse formatter with
+4-space indentation.
 
 ## Formatting (clang-format)
 
@@ -188,8 +197,8 @@ terminal after running it.
 - **Core (pacman):** git, base-devel, neovim, ripgrep, fd, unzip, curl, wget, cmake,
   tree-sitter-cli, clang (clangd + clang-format + clang-tidy), rust (skipped if `rustup`
   is present), rust-analyzer, go, gopls, lua-language-server, nodejs, npm, python,
-  python-pipx, zls, haskell-language-server, wl-clipboard, xclip, a Nerd Font
-  (JetBrains Mono Nerd)
+  python-pipx, zls, haskell-language-server, jdk-openjdk, wl-clipboard, xclip, a Nerd
+  Font (JetBrains Mono Nerd)
 - **npm (global):** same six packages as `install-macos.sh` (`typescript` is pinned to
   6.x: 7.x is the native rewrite and has no `tsserver.js` for `ts_ls` to fall back on). If npm's global prefix isn't
   writable (Arch's default is `/usr`), it's set to `~/.local` so no sudo is needed.
@@ -199,6 +208,9 @@ terminal after running it.
   (x86_64 and aarch64), `c3lsp` and `serve-d` (x86_64 only)
 - **`nil`**, from nixpkgs if `nix` is installed, otherwise `nil-git` from the AUR if
   `paru` or `yay` is installed, otherwise skipped
+- **`jdtls`** (Java), from the AUR if `paru` or `yay` is installed, otherwise the
+  upstream build unpacked into `~/.local/share/jdtls` and linked into `~/.local/bin`.
+  It needs Java 21+, so the script warns if the default JDK (`archlinux-java`) is older
 - **Copies `assets/clang-format-global` to `~/.clang-format`**
 - **Installs every plugin at the version pinned in `lazy-lock.json`** (`Lazy! restore`),
   builds LuaSnip's `jsregexp`, installs the treesitter parsers listed in
@@ -222,14 +234,16 @@ itself if either is missing (Xcode's installer is a GUI prompt — the script te
 re-run once it finishes). Homebrew's `shellenv` and the PATH additions it needs (`llvm`'s
 keg-only bin dir for `clangd`, Go's `$GOPATH/bin` for `templ`, `~/.local/bin` for the
 servers below) get appended to `~/.zprofile` if not already present, so open a new
-terminal after running it. After that, `nvim` is ready to use.
+terminal after running it. `openjdk` is keg-only as well (macOS's own `/usr/bin/java` is
+just a stub that asks you to install Java), so its bin dir is added too. After that,
+`nvim` is ready to use.
 
 **What it installs:**
 
 - **Core (Homebrew):** git, neovim, ripgrep, fd, unzip, wget, cmake, tree-sitter-cli,
   alejandra, llvm (for clangd), clang-format, rust, rust-analyzer, go, gopls,
   lua-language-server, node, python@3.13, zls, haskell-language-server,
-  cmake-language-server
+  cmake-language-server, openjdk, jdtls
 - **Cask:** font-jetbrains-mono-nerd-font
 - **npm (global):** same six packages as `install.sh`
 - **go install:** templ
@@ -268,7 +282,9 @@ with Windows, so no PowerShell 7 is needed.
 - **Core (Scoop):** git, neovim, ripgrep, fd, cmake, make, mingw (gcc, used to compile
   treesitter parsers, telescope-fzf-native and LuaSnip's jsregexp), tree-sitter, llvm
   (clangd + clang-format), rustup-gnu (Rust via the GNU toolchain, so no Visual Studio),
-  rust-analyzer, go, lua-language-server, nodejs-lts, uv, zls
+  rust-analyzer, go, lua-language-server, nodejs-lts, uv, python (jdtls's launcher is
+  a Python script), zls, jdtls
+- **Scoop `java` bucket:** temurin-lts-jdk (sets `JAVA_HOME`; jdtls needs Java 21+)
 - **Scoop `nerd-fonts` bucket:** JetBrainsMono-NF (per-user, no admin)
 - **npm (global):** same six packages as the other scripts
 - **uv tool:** cmake-language-server (uv fetches its own Python, so no Python installer
@@ -296,7 +312,8 @@ Windows-specific bits in the config itself: toggleterm opens PowerShell instead 
 `tests/smoke.lua` checks that a machine is actually set up, on any OS: no startup
 errors, every plugin installed, telescope-fzf-native and jsregexp built, every parser
 installed and loadable, every configured language server's command on PATH, and that
-`luals`, `ts_ls`, `clangd` and `gopls` really attach to a sample file.
+`luals`, `ts_ls`, `clangd`, `gopls` and `jdtls` really attach to a sample file (jdtls
+gets up to 90 seconds, since it starts a JVM).
 
 ```sh
 nvim --headless "+luafile tests/smoke.lua"
