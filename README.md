@@ -5,7 +5,7 @@ Lua and Markdown are set up, and only what those need gets installed. Built arou
 LSP (`vim.lsp.config`/`vim.lsp.enable`, no `nvim-lspconfig`), `lazy.nvim` for plugins, and
 a custom colorscheme ([`cyberpunk`](https://github.com/Art3mis524/cyberpunk)).
 
-This is the `windows-minimal` branch (tagged `windows-minimal-v1`). The full config, with
+This is the `windows-minimal` branch (latest tag `windows-minimal-v2`). The full config, with
 every language and the macOS/Arch install scripts, is on
 [`master`](https://github.com/Art3mis524/nvim-config).
 
@@ -15,7 +15,7 @@ In PowerShell, not as admin (**not yet tested on a Windows machine**, see
 [below](#install-windowsps1)):
 
 ```powershell
-git clone --branch windows-minimal-v1 https://github.com/Art3mis524/nvim-config.git $env:USERPROFILE\nvim-config
+git clone --branch windows-minimal-v2 https://github.com/Art3mis524/nvim-config.git $env:USERPROFILE\nvim-config
 cd $env:USERPROFILE\nvim-config
 powershell -ExecutionPolicy Bypass -File .\install-windows.ps1
 # open a new terminal so the PATH changes take effect, then:
@@ -126,7 +126,10 @@ would otherwise give them — via a treesitter query override at
 ## Theme
 
 Active colorscheme: [`cyberpunk`](https://github.com/Art3mis524/cyberpunk) (installed as
-a normal plugin dependency), currently on the `cyberpunkNeon` style variant.
+a normal plugin dependency), currently on the `cyberpunkNeon` style variant. The install
+script always pulls its latest commit rather than the one pinned in `lazy-lock.json`, so
+re-running the script picks up theme changes; in an open nvim, `:Lazy update cyberpunk`
+does the same.
 Switch to the calmer variant any time with `:colorscheme cyberpunk`, or browse everything
 installed (several other themes are kept around purely for comparison) with `<leader>ft`.
 
@@ -182,7 +185,8 @@ PowerShell 7 is needed.
   is needed)
 - **Copies `assets/clang-format-global` to `~\.clang-format`**
 - **Installs every plugin at the version pinned in `lazy-lock.json`** (`Lazy! restore`),
-  builds LuaSnip's `jsregexp`, installs the treesitter parsers listed in
+  except the `cyberpunk` theme, which is updated to its latest commit; builds LuaSnip's
+  `jsregexp`, installs the treesitter parsers listed in
   `lua/config/parsers.lua`, and checks that none are missing
 
 The script is safe to re-run — every step checks before acting.

@@ -240,10 +240,12 @@ Note 'Installing Neovim plugins and treesitter parsers'
 $SyncLog = Join-Path $env:TEMP 'nvim-install-sync.log'
 if (Test-Command 'nvim') {
     # restore installs each plugin at the version pinned in lazy-lock.json, so
-    # a fresh machine matches the tested setup. Headless nvim exits 0 even if
-    # :Lazy doesn't exist, so fail explicitly when lazy.nvim never loaded.
+    # a fresh machine matches the tested setup. The cyberpunk theme is the
+    # exception: it's my own, so it's then updated to its latest commit.
+    # Headless nvim exits 0 even if :Lazy doesn't exist, so fail explicitly
+    # when lazy.nvim never loaded.
     & nvim --headless "+lua if not package.loaded['lazy'] then vim.cmd('cquit 1') end" `
-        '+Lazy! restore' '+Lazy! build LuaSnip' '+qa' 2>&1 | Out-File -Encoding utf8 $SyncLog
+        '+Lazy! restore' '+Lazy! update cyberpunk' '+Lazy! build LuaSnip' '+qa' 2>&1 | Out-File -Encoding utf8 $SyncLog
     if ($LASTEXITCODE -eq 0) { Ok 'plugins installed at lockfile versions' } else {
         Warn "plugin install reported an issue - see $SyncLog"
         $Failed.Add('lazy.nvim plugin install')
