@@ -209,12 +209,12 @@ $env:Path = [Environment]::GetEnvironmentVariable('Path', 'User') + ';' + [Envir
 $env:JAVA_HOME = [Environment]::GetEnvironmentVariable('JAVA_HOME', 'User')
 
 # ---------------------------------------------------------------------------
-Note 'Nerd Font (JetBrains Mono)'
+Note 'Nerd Font (Hermit)'
 # ---------------------------------------------------------------------------
 if (-not (Test-Path (Join-Path $ScoopRoot 'buckets\nerd-fonts'))) {
     scoop bucket add nerd-fonts | Out-Null
 }
-if (-not (Install-ScoopApp 'nerd-fonts/JetBrainsMono-NF')) {
+if (-not (Install-ScoopApp 'nerd-fonts/Hermit-NF')) {
     Warn 'install manually if icons look wrong in nvim'
     $Failed.Add('Nerd Font')
 }
@@ -394,7 +394,7 @@ if ($Skipped.Count -gt 0) {
 }
 Write-Host ''
 Write-Host 'Open a new terminal (so the PATH changes take effect) and nvim is ready'
-Write-Host 'to use. Set your terminal font to JetBrainsMono Nerd Font (Windows'
+Write-Host 'to use. Set your terminal font to Hurmit Nerd Font Mono (Windows'
 Write-Host 'Terminal: Settings > Profiles > Defaults > Appearance) so icons render.'
 
 if ($Failed.Count -eq 0) { exit 0 } else { exit 1 }

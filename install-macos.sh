@@ -140,9 +140,9 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-note "Nerd Font (JetBrains Mono)"
+note "Nerd Font (Hermit)"
 # ---------------------------------------------------------------------------
-if brew install --cask font-jetbrains-mono-nerd-font; then
+if brew install --cask font-hurmit-nerd-font; then
     ok "font installed"
 else
     warn "font cask failed — install manually if icons look wrong in nvim"
@@ -348,7 +348,7 @@ if [ ${#SKIPPED[@]} -gt 0 ]; then
 fi
 echo
 echo "Open a new terminal (so the PATH changes in ~/.zprofile take effect) and"
-echo "nvim is ready to use. Set your terminal's font to JetBrainsMono Nerd Font"
+echo "nvim is ready to use. Set your terminal's font to Hurmit Nerd Font Mono"
 echo "if it isn't already, so icons render."
 
 if [ ${#FAILED[@]} -eq 0 ]; then

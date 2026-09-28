@@ -86,7 +86,7 @@ CORE_PKGS=(
     haskell-language-server
     jdk-openjdk      # JDK; jdtls needs Java 21+ to run
     wl-clipboard xclip
-    ttf-jetbrains-mono-nerd
+    otf-hermit-nerd
 )
 # The rust package conflicts with rustup; if rustup manages the toolchain,
 # leave it alone and just make sure rustfmt is there.
@@ -382,7 +382,7 @@ if [ ${#SKIPPED[@]} -gt 0 ]; then
 fi
 echo
 echo "Open a new terminal (so the PATH changes in $PROFILE take effect) and"
-echo "nvim is ready to use. Set your terminal's font to JetBrainsMono Nerd Font"
+echo "nvim is ready to use. Set your terminal's font to Hurmit Nerd Font Mono"
 echo "if it isn't already, so icons render."
 if grep -qi microsoft /proc/version 2>/dev/null; then
     echo

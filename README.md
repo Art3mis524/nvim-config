@@ -198,7 +198,7 @@ terminal after running it.
   tree-sitter-cli, clang (clangd + clang-format + clang-tidy), rust (skipped if `rustup`
   is present), rust-analyzer, go, gopls, lua-language-server, nodejs, npm, python,
   python-pipx, zls, haskell-language-server, jdk-openjdk, wl-clipboard, xclip, a Nerd
-  Font (JetBrains Mono Nerd)
+  Font (Hermit Nerd)
 - **npm (global):** same six packages as `install-macos.sh` (`typescript` is pinned to
   6.x: 7.x is the native rewrite and has no `tsserver.js` for `ts_ls` to fall back on). If npm's global prefix isn't
   writable (Arch's default is `/usr`), it's set to `~/.local` so no sudo is needed.
@@ -244,7 +244,7 @@ just a stub that asks you to install Java), so its bin dir is added too. After t
   alejandra, llvm (for clangd), clang-format, rust, rust-analyzer, go, gopls,
   lua-language-server, node, python@3.13, zls, haskell-language-server,
   cmake-language-server, openjdk, jdtls
-- **Cask:** font-jetbrains-mono-nerd-font
+- **Cask:** font-hurmit-nerd-font (Hermit; Nerd Fonts publishes it as "Hurmit")
 - **npm (global):** same six packages as `install.sh`
 - **go install:** templ
 - **GitHub release binaries into `~/.local/bin`:** `glsl_analyzer`, `c3lsp` (Apple
@@ -285,7 +285,7 @@ with Windows, so no PowerShell 7 is needed.
   rust-analyzer, go, lua-language-server, nodejs-lts, uv, python (jdtls's launcher is
   a Python script), zls, jdtls
 - **Scoop `java` bucket:** temurin-lts-jdk (sets `JAVA_HOME`; jdtls needs Java 21+)
-- **Scoop `nerd-fonts` bucket:** JetBrainsMono-NF (per-user, no admin)
+- **Scoop `nerd-fonts` bucket:** Hermit-NF (per-user, no admin)
 - **npm (global):** same six packages as the other scripts
 - **uv tool:** cmake-language-server (uv fetches its own Python, so no Python installer
   is needed)
