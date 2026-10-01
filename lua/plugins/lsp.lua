@@ -468,10 +468,16 @@ return {
             filetypes = { 'java' },
             -- Build-wrapper/settings files first so a multi-module project's
             -- top level wins over a submodule's own pom.xml/build.gradle.
-            root_markers = {
-                { 'mvnw', 'gradlew', 'settings.gradle', 'settings.gradle.kts', '.git' },
-                { 'pom.xml', 'build.gradle', 'build.gradle.kts', 'build.xml' },
-            },
+            -- With no marker, fall back to the file's own directory: without a
+            -- root jdtls treats the file as a "non-project file" and only
+            -- reports syntax errors.
+            root_dir = function(bufnr, on_dir)
+                local root = vim.fs.root(bufnr, {
+                    { 'mvnw', 'gradlew', 'settings.gradle', 'settings.gradle.kts', '.git' },
+                    { 'pom.xml', 'build.gradle', 'build.gradle.kts', 'build.xml' },
+                })
+                on_dir(root or vim.fs.dirname(vim.api.nvim_buf_get_name(bufnr)))
+            end,
             capabilities = caps,
             init_options = {
                 -- Lets go-to-definition into JDK/library classes return
