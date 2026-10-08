@@ -108,6 +108,7 @@ CORE_PKGS=(
     haskell-language-server
     openjdk          # JDK (keg-only, PATH handled below)
     jdtls            # Java language server; runs on openjdk even off PATH
+    hurl jq          # REST client (hurl.nvim) + JSON response formatting
 )
 if brew install "${CORE_PKGS[@]}"; then
     ok "core packages installed"

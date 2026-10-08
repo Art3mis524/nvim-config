@@ -184,6 +184,7 @@ $CorePkgs = @(
     'nodejs-lts',
     'uv',                   # cmake-language-server (uv brings its own Python, no MSI installer)
     'python',               # jdtls's launcher is a Python script
+    'hurl', 'jq',           # REST client (hurl.nvim) + JSON response formatting
     'zls'
 )
 foreach ($pkg in $CorePkgs) {

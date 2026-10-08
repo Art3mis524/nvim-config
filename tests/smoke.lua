@@ -4,9 +4,10 @@
 --     nvim --headless "+luafile tests/smoke.lua"
 --
 -- Checks startup errors, plugins, compiled plugin libraries, treesitter
--- parsers, that every configured language server's command is on PATH, and
--- that a few servers really attach to a buffer. Exits 0 when everything
--- passes, 1 otherwise.
+-- parsers, that every configured language server's command is on PATH, that
+-- a few servers really attach to a buffer, and that hurl.nvim's <leader>ha
+-- sends a request (to a local server) and shows the response. Exits 0 when
+-- everything passes, 1 otherwise.
 --
 -- SMOKE_SKIP_SERVERS: comma-separated vim.lsp.config names that are expected
 -- to be missing on this machine (e.g. "nil_ls,hls" on Windows).
@@ -107,6 +108,45 @@ for _, s in ipairs(samples) do
     end
 end
 for _, client in ipairs(vim.lsp.get_clients()) do client:stop(true) end
+
+out('== hurl (REST client)')
+local have_hurl = check(vim.fn.executable('hurl') == 1, 'hurl on PATH')
+check(vim.fn.executable('jq') == 1, 'jq on PATH (formats JSON responses)')
+if have_hurl then
+    -- A one-shot local HTTP server, so the request needs no network.
+    local server = assert(vim.uv.new_tcp())
+    server:bind('127.0.0.1', 0)
+    local port = server:getsockname().port
+    server:listen(8, function()
+        local conn = assert(vim.uv.new_tcp())
+        server:accept(conn)
+        local req = ''
+        conn:read_start(function(_, chunk)
+            req = req .. (chunk or '')
+            if not chunk or req:find('\r\n\r\n', 1, true) then
+                local body = '{"pong":true}'
+                conn:write('HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: '
+                    .. #body .. '\r\nConnection: close\r\n\r\n' .. body, function() conn:close() end)
+            end
+        end)
+    end)
+
+    local path = tmp .. '/sample.hurl'
+    vim.fn.writefile({ 'GET http://127.0.0.1:' .. port .. '/ping', 'HTTP 200' }, path)
+    vim.cmd.edit(vim.fn.fnameescape(path))
+    vim.api.nvim_win_set_cursor(0, { 1, 0 })
+    -- Press the real keybind, the same as a user would.
+    vim.api.nvim_feedkeys(vim.keycode('<leader>ha'), 'mx', false)
+    local shown = vim.wait(30000, function()
+        for _, win in ipairs(vim.api.nvim_list_wins()) do
+            local lines = vim.api.nvim_buf_get_lines(vim.api.nvim_win_get_buf(win), 0, -1, false)
+            if table.concat(lines, '\n'):find('"pong": true', 1, true) then return true end
+        end
+        return false
+    end, 200)
+    check(shown, '<leader>ha sent a request and showed the formatted response')
+    server:close()
+end
 
 out('')
 out(failures == 0 and 'SMOKE TEST PASSED' or ('SMOKE TEST FAILED: ' .. failures .. ' check(s)'))

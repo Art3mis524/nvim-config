@@ -6,5 +6,5 @@ return {
     'html', 'css', 'json',
     'lua', 'markdown', 'markdown_inline', 'bash',
     'c', 'cpp', 'cmake', 'make', 'glsl',
-    'java',
+    'java', 'hurl',
 }

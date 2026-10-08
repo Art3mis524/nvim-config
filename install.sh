@@ -85,6 +85,7 @@ CORE_PKGS=(
     zls
     haskell-language-server
     jdk-openjdk      # JDK; jdtls needs Java 21+ to run
+    hurl jq          # REST client (hurl.nvim) + JSON response formatting
     wl-clipboard xclip
     otf-hermit-nerd
 )

@@ -84,6 +84,17 @@ plugin versions).
 | `<F3>` / `<leader>f` | Format buffer |
 | `<F4>` / `<leader>ca` | Code actions — checks the whole current line, not just the exact cursor column |
 
+### REST client (`hurl.nvim`, only in `.hurl` files)
+
+| Key | Mode | Action |
+|---|---|---|
+| `<leader>ha` | n | Run the request under the cursor; the response opens in a split (`q` closes it) |
+| `<leader>ha` | v | Run the selected requests |
+| `<leader>hA` | n | Run every request in the file |
+| `<leader>hv` | n | Run the request under the cursor in verbose mode (full headers, timings) |
+| `<leader>hl` | n | Show the last response again |
+| `<leader>hm` | n | Toggle responses between a split and a popup |
+
 ### Multi-cursor (`multicursor.nvim`)
 
 | Key | Action |
@@ -180,9 +191,30 @@ installed (several other themes are kept around purely for comparison) with `<le
 | `brenoprata10/nvim-highlight-colors` | Inline color previews for hex codes etc. |
 | `ojroques/vim-oscyank` | Clipboard over SSH |
 | `ThePrimeagen/vim-be-good` | Vim motion practice game |
+| `jellydn/hurl.nvim` | REST client: run HTTP requests from `.hurl` files (see below) |
 
 Several more colorschemes are installed purely for browsing via `<leader>ft` (see
 `lua/plugins/themes.lua`) — they're not active by default.
+
+## REST client (hurl)
+
+Write requests in a `.hurl` file, put the cursor on one and press `<leader>ha`:
+
+```hurl
+GET http://localhost:3000/users/1
+
+POST http://localhost:3000/users
+Content-Type: application/json
+{
+    "name": "Josh"
+}
+```
+
+The response (status, headers, and the body pretty-printed by `jq`) opens in a split.
+Shared values go in a `vars.env` file next to it (`base_url=http://localhost:3000`) and
+are used as `{{base_url}}`. Checks (`HTTP 200`, `[Asserts]`) and captures for chaining
+requests are optional; see the [Hurl docs](https://hurl.dev). The same file also runs
+outside Neovim with `hurl --test file.hurl`.
 
 ## Install scripts
 
@@ -205,8 +237,8 @@ terminal after running it.
 - **Core (pacman):** git, base-devel, neovim, ripgrep, fd, unzip, curl, wget, cmake,
   tree-sitter-cli, clang (clangd + clang-format + clang-tidy), rust (skipped if `rustup`
   is present), rust-analyzer, go, gopls, lua-language-server, nodejs, npm, python,
-  python-pipx, zls, haskell-language-server, jdk-openjdk, wl-clipboard, xclip, a Nerd
-  Font (Hermit Nerd)
+  python-pipx, zls, haskell-language-server, jdk-openjdk, hurl, jq, wl-clipboard, xclip,
+  a Nerd Font (Hermit Nerd)
 - **npm (global):** same five packages as `install-macos.sh` (`typescript` is pinned to
   6.x: 7.x is the native rewrite and has no `tsserver.js` for `ts_ls` to fall back on). If npm's global prefix isn't
   writable (Arch's default is `/usr`), it's set to `~/.local` so no sudo is needed.
@@ -252,7 +284,7 @@ just a stub that asks you to install Java), so its bin dir is added too. After t
 - **Core (Homebrew):** git, neovim, ripgrep, fd, unzip, wget, cmake, tree-sitter-cli,
   alejandra, llvm (for clangd), clang-format, rust, rust-analyzer, go, gopls,
   lua-language-server, node, python@3.13, zls, haskell-language-server,
-  cmake-language-server, openjdk, jdtls
+  cmake-language-server, openjdk, jdtls, hurl, jq
 - **Cask:** font-hurmit-nerd-font (Hermit; Nerd Fonts publishes it as "Hurmit")
 - **npm (global):** same five packages as `install.sh`
 - **go install:** templ
@@ -293,7 +325,7 @@ with Windows, so no PowerShell 7 is needed.
   treesitter parsers, telescope-fzf-native and LuaSnip's jsregexp), tree-sitter, llvm
   (clangd + clang-format), rustup-gnu (Rust via the GNU toolchain, so no Visual Studio),
   rust-analyzer, go, lua-language-server, nodejs-lts, uv, python (jdtls's launcher is
-  a Python script), zls, jdtls
+  a Python script), zls, jdtls, hurl, jq
 - **Scoop `java` bucket:** temurin-lts-jdk (sets `JAVA_HOME`; jdtls needs Java 21+)
 - **Scoop `nerd-fonts` bucket:** Hermit-NF (per-user, no admin)
 - **npm (global):** same five packages as the other scripts
@@ -323,7 +355,9 @@ Windows-specific bits in the config itself: toggleterm opens PowerShell instead 
 errors, every plugin installed, telescope-fzf-native and jsregexp built, every parser
 installed and loadable, every configured language server's command on PATH, and that
 `luals`, `ts_ls`, `clangd`, `gopls` and `jdtls` really attach to a sample file (jdtls
-gets up to 90 seconds, since it starts a JVM).
+gets up to 90 seconds, since it starts a JVM). It also checks `hurl` and `jq` are on PATH
+and presses `<leader>ha` in a sample `.hurl` file to send a real request to a tiny local
+server it starts (so no network is needed), confirming the formatted response appears.
 
 ```sh
 nvim --headless "+luafile tests/smoke.lua"
