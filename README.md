@@ -127,8 +127,8 @@ Haskell (`hls`), Go (`gopls`), templ (`templ`), Java (`jdtls`).
 Format-on-save is enabled for every language except C and PHP (C++ is included — see
 [Formatting](#formatting-clang-format) below).
 
-Indentation is 4 spaces everywhere (`lua/config/options.lua`) except HTML, which uses 2
-(`after/ftplugin/html.lua`) since HTML nests deeply. The formatters follow the buffer's
+Indentation is 4 spaces everywhere (`lua/config/options.lua`) except HTML and JSON/JSONC,
+which use 2 (`after/ftplugin/html.lua`, `json.lua`, `jsonc.lua`). The formatters follow the buffer's
 setting, so saving re-indents a file to match. That includes existing files written with a
 different width. (Neovim's own SCSS settings use 2.)
 
