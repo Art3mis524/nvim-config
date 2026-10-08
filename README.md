@@ -108,13 +108,18 @@ plugin versions).
 
 ## Languages with LSP configured
 
-C/C++ (`clangd`), Lua (`luals`), CSS/SCSS/Less (`cssls`), PHP (`phpls`), JS/JSX/TS/TSX (`ts_ls`),
+C/C++ (`clangd`), Lua (`luals`), HTML (`html`), CSS/SCSS/Less (`cssls`), PHP (`phpls`), JS/JSX/TS/TSX (`ts_ls`),
 Zig (`zls`), Nix (`nil_ls`), Rust (`rust_analyzer`), CMake (`cmake`), GLSL (`glsl_analyzer`),
 C3 (`c3lsp`), D (`serve_d`), JSON/JSONC (`jsonls`), Tailwind (`tailwindcss`), ESLint (`eslint`),
 Haskell (`hls`), Go (`gopls`), templ (`templ`), Java (`jdtls`).
 
 Format-on-save is enabled for every language except C and PHP (C++ is included — see
 [Formatting](#formatting-clang-format) below).
+
+Indentation is 4 spaces everywhere (`lua/config/options.lua`) except HTML, which uses 2
+(`after/ftplugin/html.lua`) since HTML nests deeply. The formatters follow the buffer's
+setting, so saving re-indents a file to match. That includes existing files written with a
+different width. (Neovim's own SCSS settings use 2.)
 
 **Java notes:** `jdtls` is configured natively (no `nvim-jdtls` plugin). It finds the
 project root from `mvnw`/`gradlew`/`settings.gradle`/`.git` first, then
@@ -202,7 +207,7 @@ terminal after running it.
   is present), rust-analyzer, go, gopls, lua-language-server, nodejs, npm, python,
   python-pipx, zls, haskell-language-server, jdk-openjdk, wl-clipboard, xclip, a Nerd
   Font (Hermit Nerd)
-- **npm (global):** same six packages as `install-macos.sh` (`typescript` is pinned to
+- **npm (global):** same five packages as `install-macos.sh` (`typescript` is pinned to
   6.x: 7.x is the native rewrite and has no `tsserver.js` for `ts_ls` to fall back on). If npm's global prefix isn't
   writable (Arch's default is `/usr`), it's set to `~/.local` so no sudo is needed.
 - **pipx:** cmake-language-server
@@ -249,7 +254,7 @@ just a stub that asks you to install Java), so its bin dir is added too. After t
   lua-language-server, node, python@3.13, zls, haskell-language-server,
   cmake-language-server, openjdk, jdtls
 - **Cask:** font-hurmit-nerd-font (Hermit; Nerd Fonts publishes it as "Hurmit")
-- **npm (global):** same six packages as `install.sh`
+- **npm (global):** same five packages as `install.sh`
 - **go install:** templ
 - **GitHub release binaries into `~/.local/bin`:** `glsl_analyzer`, `c3lsp` (Apple
   Silicon only), `serve-d` (Intel build; runs under Rosetta on Apple Silicon)
@@ -291,7 +296,7 @@ with Windows, so no PowerShell 7 is needed.
   a Python script), zls, jdtls
 - **Scoop `java` bucket:** temurin-lts-jdk (sets `JAVA_HOME`; jdtls needs Java 21+)
 - **Scoop `nerd-fonts` bucket:** Hermit-NF (per-user, no admin)
-- **npm (global):** same six packages as the other scripts
+- **npm (global):** same five packages as the other scripts
 - **uv tool:** cmake-language-server (uv fetches its own Python, so no Python installer
   is needed)
 - **go install:** gopls, templ

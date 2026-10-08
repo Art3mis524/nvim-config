@@ -24,95 +24,95 @@ return {
         cmd = 'VimBeGood',
     },
     {
-	'ojroques/vim-oscyank',
+        'ojroques/vim-oscyank',
     },
     {
-	'tpope/vim-fugitive',
+        'tpope/vim-fugitive',
     },
     {
-	'lewis6991/gitsigns.nvim',
-	opts = {},
+        'lewis6991/gitsigns.nvim',
+        opts = {},
     },
     {
-	'jake-stewart/multicursor.nvim',
-	branch = '1.0',
-	config = function()
-	    local mc = require('multicursor-nvim')
-	    mc.setup()
+        'jake-stewart/multicursor.nvim',
+        branch = '1.0',
+        config = function()
+            local mc = require('multicursor-nvim')
+            mc.setup()
 
-	    local set = vim.keymap.set
+            local set = vim.keymap.set
 
-	    -- Ctrl-n / Ctrl-Down / Ctrl-Up match vim-visual-multi's mappings,
-	    -- kept the same on purpose to preserve muscle memory.
-	    set({ 'n', 'x' }, '<C-n>', function() mc.matchAddCursor(1) end)
-	    set({ 'n', 'x' }, '<C-Down>', function() mc.lineAddCursor(1) end)
-	    set({ 'n', 'x' }, '<C-Up>', function() mc.lineAddCursor(-1) end)
+            -- Ctrl-n / Ctrl-Down / Ctrl-Up match vim-visual-multi's mappings,
+            -- kept the same on purpose to preserve muscle memory.
+            set({ 'n', 'x' }, '<C-n>', function() mc.matchAddCursor(1) end)
+            set({ 'n', 'x' }, '<C-Down>', function() mc.lineAddCursor(1) end)
+            set({ 'n', 'x' }, '<C-Up>', function() mc.lineAddCursor(-1) end)
 
-	    set('n', '<C-LeftMouse>', mc.handleMouse)
-	    set('n', '<C-LeftDrag>', mc.handleMouseDrag)
-	    set('n', '<C-LeftRelease>', mc.handleMouseRelease)
+            set('n', '<C-LeftMouse>', mc.handleMouse)
+            set('n', '<C-LeftDrag>', mc.handleMouseDrag)
+            set('n', '<C-LeftRelease>', mc.handleMouseRelease)
 
-	    -- Keyboard equivalent of Ctrl-click: add/remove a cursor at the
-	    -- current cursor position.
-	    set({ 'n', 'x' }, '<C-q>', mc.toggleCursor)
+            -- Keyboard equivalent of Ctrl-click: add/remove a cursor at the
+            -- current cursor position.
+            set({ 'n', 'x' }, '<C-q>', mc.toggleCursor)
 
-	    -- Only active while multiple cursors exist, so this never touches
-	    -- normal Escape behaviour otherwise.
-	    mc.addKeymapLayer(function(layerSet)
-		layerSet({ 'n', 'x' }, '<Esc>', function()
-		    if not mc.cursorsEnabled() then
-			mc.enableCursors()
-		    else
-			mc.clearCursors()
-		    end
-		end)
-	    end)
-	end,
+            -- Only active while multiple cursors exist, so this never touches
+            -- normal Escape behaviour otherwise.
+            mc.addKeymapLayer(function(layerSet)
+                layerSet({ 'n', 'x' }, '<Esc>', function()
+                    if not mc.cursorsEnabled() then
+                        mc.enableCursors()
+                    else
+                        mc.clearCursors()
+                    end
+                end)
+            end)
+        end,
     },
     {
-	'akinsho/toggleterm.nvim',
-	version = '*',
-	opts = {
-	    direction = 'vertical',
-	    size = function(term)
-		if term.direction == 'vertical' then
-		    return math.floor(vim.o.columns * 0.4)
-		end
-	    end,
-	    open_mapping = [[<c-\>]],
-	    -- Windows defaults to cmd.exe; prefer PowerShell 7, then 5.1.
-	    shell = vim.fn.has('win32') == 1
-		and (vim.fn.executable('pwsh') == 1 and 'pwsh' or 'powershell')
-		or vim.o.shell,
-	},
+        'akinsho/toggleterm.nvim',
+        version = '*',
+        opts = {
+            direction = 'vertical',
+            size = function(term)
+                if term.direction == 'vertical' then
+                    return math.floor(vim.o.columns * 0.4)
+                end
+            end,
+            open_mapping = [[<c-\>]],
+            -- Windows defaults to cmd.exe; prefer PowerShell 7, then 5.1.
+            shell = vim.fn.has('win32') == 1
+                and (vim.fn.executable('pwsh') == 1 and 'pwsh' or 'powershell')
+                or vim.o.shell,
+        },
     },
     {
-	'brenoprata10/nvim-highlight-colors',
-	config = function()
-	    require('nvim-highlight-colors').setup({})
-	end
+        'brenoprata10/nvim-highlight-colors',
+        config = function()
+            require('nvim-highlight-colors').setup({})
+        end
     },
     {
-	'folke/ts-comments.nvim',
-	event = 'VeryLazy',
-	opts = {},
+        'folke/ts-comments.nvim',
+        event = 'VeryLazy',
+        opts = {},
     },
     {
-	'lukas-reineke/indent-blankline.nvim',
-	main = 'ibl',
-	opts = {},
+        'lukas-reineke/indent-blankline.nvim',
+        main = 'ibl',
+        opts = {},
     },
     {
-	'ray-x/lsp_signature.nvim',
-	event = 'VeryLazy',
-	opts = {
-	    hint_enable = false,
-	    floating_window = true,
-	    max_height = 12,
-	    max_width = 80,
-	    debug = true,
-	    log_path = vim.fn.stdpath('cache') .. '/lsp_signature.log',
-	    ignore_error = function() return false end,
-	},
+        'ray-x/lsp_signature.nvim',
+        event = 'VeryLazy',
+        opts = {
+            hint_enable = false,
+            floating_window = true,
+            max_height = 12,
+            max_width = 80,
+            debug = true,
+            log_path = vim.fn.stdpath('cache') .. '/lsp_signature.log',
+            ignore_error = function() return false end,
+        },
     },
 }

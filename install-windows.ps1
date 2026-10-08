@@ -227,7 +227,6 @@ if (Test-Command 'npm') {
         'typescript@6', 'typescript-language-server',  # 7.x has no tsserver.js; see ts_ls in lsp.lua
         'intelephense',
         'vscode-langservers-extracted',
-        'vscode-json-languageserver',
         '@tailwindcss/language-server'
     )
     foreach ($pkg in $NpmPkgs) {

@@ -3,7 +3,7 @@
 -- default; none of these apply themselves.
 return {
     { 'folke/tokyonight.nvim' },
-    { 'catppuccin/nvim',       name = 'catppuccin' },
+    { 'catppuccin/nvim',               name = 'catppuccin' },
     { 'ellisonleao/gruvbox.nvim' },
     { 'sainnhe/everforest' },
     { 'maxmx03/solarized.nvim' },

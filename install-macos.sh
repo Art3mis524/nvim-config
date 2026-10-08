@@ -157,7 +157,6 @@ if command -v npm >/dev/null 2>&1; then
         typescript@6 typescript-language-server  # 7.x has no tsserver.js; see ts_ls in lsp.lua
         intelephense
         vscode-langservers-extracted
-        vscode-json-languageserver
         "@tailwindcss/language-server"
     )
     for pkg in "${NPM_PKGS[@]}"; do

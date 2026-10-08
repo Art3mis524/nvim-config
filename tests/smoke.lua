@@ -87,12 +87,12 @@ out('== language servers attach')
 local tmp = vim.fn.tempname()
 vim.fn.mkdir(tmp, 'p')
 local samples = {
-    { server = 'luals',   file = 'sample.lua', text = { 'local x = 1', 'return x' } },
-    { server = 'ts_ls',   file = 'sample.ts',  text = { 'const x: number = 1;', 'export default x;' } },
-    { server = 'clangd',  file = 'sample.cpp', text = { 'int main() { return 0; }' } },
-    { server = 'gopls',   file = 'sample.go',  text = { 'package main', '', 'func main() {}' } },
+    { server = 'luals',  file = 'sample.lua',  text = { 'local x = 1', 'return x' } },
+    { server = 'ts_ls',  file = 'sample.ts',   text = { 'const x: number = 1;', 'export default x;' } },
+    { server = 'clangd', file = 'sample.cpp',  text = { 'int main() { return 0; }' } },
+    { server = 'gopls',  file = 'sample.go',   text = { 'package main', '', 'func main() {}' } },
     -- jdtls boots a JVM, so give it longer.
-    { server = 'jdtls',   file = 'Sample.java', text = { 'class Sample {}' }, timeout = 90000 },
+    { server = 'jdtls',  file = 'Sample.java', text = { 'class Sample {}' },                          timeout = 90000 },
 }
 for _, s in ipairs(samples) do
     if runnable[s.server] then

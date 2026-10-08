@@ -22,14 +22,22 @@ return {
                 ['<C-e>']     = cmp.mapping.abort(),
                 ['<CR>']      = cmp.mapping.confirm({ select = false }),
                 ['<Tab>']     = cmp.mapping(function(fallback)
-                    if cmp.visible() then cmp.select_next_item()
-                    elseif luasnip.expand_or_jumpable() then luasnip.expand_or_jump()
-                    else fallback() end
+                    if cmp.visible() then
+                        cmp.select_next_item()
+                    elseif luasnip.expand_or_jumpable() then
+                        luasnip.expand_or_jump()
+                    else
+                        fallback()
+                    end
                 end, { 'i', 's' }),
                 ['<S-Tab>']   = cmp.mapping(function(fallback)
-                    if cmp.visible() then cmp.select_prev_item()
-                    elseif luasnip.jumpable(-1) then luasnip.jump(-1)
-                    else fallback() end
+                    if cmp.visible() then
+                        cmp.select_prev_item()
+                    elseif luasnip.jumpable(-1) then
+                        luasnip.jump(-1)
+                    else
+                        fallback()
+                    end
                 end, { 'i', 's' }),
             }),
             sources = cmp.config.sources({
@@ -122,8 +130,8 @@ return {
                     client.server_capabilities.diagnosticProvider = nil
                 end
 
-                local buf    = args.buf
-                local map    = function(mode, lhs, rhs) vim.keymap.set(mode, lhs, rhs, { buffer = buf }) end
+                local buf = args.buf
+                local map = function(mode, lhs, rhs) vim.keymap.set(mode, lhs, rhs, { buffer = buf }) end
 
                 map('n', 'K', vim.lsp.buf.hover)
                 map('n', 'gd', vim.lsp.buf.definition)
@@ -216,10 +224,28 @@ return {
             filetypes = { 'css', 'scss', 'less' },
             root_markers = { 'package.json', '.git' },
             capabilities = caps,
+            -- The server only offers formatting when asked to.
+            init_options = { provideFormatter = true },
             settings = {
                 css = { validate = true },
                 scss = { validate = true },
                 less = { validate = true },
+            },
+        }
+
+        -- Same package as cssls/jsonls (vscode-langservers-extracted).
+        -- Formats with the buffer's indent width, which after/ftplugin/html.lua
+        -- sets to 2.
+        vim.lsp.config['html'] = {
+            cmd = { 'vscode-html-language-server', '--stdio' },
+            filetypes = { 'html' },
+            root_markers = { 'package.json', '.git' },
+            capabilities = caps,
+            init_options = {
+                provideFormatter = true,
+                -- Also format/complete <style> and <script> blocks.
+                embeddedLanguages = { css = true, javascript = true },
+                configurationSection = { 'html', 'css', 'javascript' },
             },
         }
 
@@ -381,10 +407,14 @@ return {
         }
 
         vim.lsp.config['jsonls'] = {
-            cmd = { 'vscode-json-languageserver', '--stdio' },
+            cmd = { 'vscode-json-language-server', '--stdio' },
             filetypes = { 'json', 'jsonc' },
             root_markers = { 'package.json', '.git', 'config.jsonc' },
             capabilities = caps,
+            -- Like cssls, it only offers formatting when asked to. (This is the
+            -- server from vscode-langservers-extracted; the older standalone
+            -- vscode-json-languageserver package can't format at all.)
+            init_options = { provideFormatter = true },
         }
 
         vim.lsp.config['tailwindcss'] = {
@@ -473,7 +503,7 @@ return {
             -- reports syntax errors.
             root_dir = function(bufnr, on_dir)
                 local root = vim.fs.root(bufnr, {
-                    { 'mvnw', 'gradlew', 'settings.gradle', 'settings.gradle.kts', '.git' },
+                    { 'mvnw',    'gradlew',      'settings.gradle',  'settings.gradle.kts', '.git' },
                     { 'pom.xml', 'build.gradle', 'build.gradle.kts', 'build.xml' },
                 })
                 on_dir(root or vim.fs.dirname(vim.api.nvim_buf_get_name(bufnr)))
