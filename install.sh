@@ -70,7 +70,8 @@ release_binaries() {
 }
 
 aur_exists() {
-    curl -fsS "https://aur.archlinux.org/rpc/v5/info?arg%5B%5D=$1" | grep -q '"resultcount":1'
+    local out
+    out="$(curl -fsS "https://aur.archlinux.org/rpc/v5/info?arg%5B%5D=$1")" && [[ "$out" == *'"resultcount":1'* ]]
 }
 
 # The first AUR helper found, if any.
