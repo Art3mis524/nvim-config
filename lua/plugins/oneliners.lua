@@ -26,7 +26,17 @@ return {
             'nvim-tree/nvim-web-devicons',
         },
         ft = 'markdown',
-        opts = {},
+        keys = {
+            { '<leader>p', '<cmd>RenderMarkdown toggle<cr>', ft = 'markdown', desc = 'Toggle markdown preview' },
+        },
+        opts = {
+            -- Either fully rendered or fully raw, switched with <leader>p.
+            -- Render in every mode (incl. visual) so selections don't flip
+            -- back to raw markdown and shift the text around.
+            render_modes = true,
+            -- Don't reveal raw markdown on the line under the cursor.
+            anti_conceal = { enabled = false },
+        },
     },
     {
         'ThePrimeagen/vim-be-good',
