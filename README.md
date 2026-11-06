@@ -1,8 +1,8 @@
 # nvim-config
 
 My personal Neovim configuration. Built around native LSP (`vim.lsp.config`/`vim.lsp.enable`,
-no `nvim-lspconfig`), `lazy.nvim` for plugins, and a custom colorscheme
-([`cyberpunk`](https://github.com/Art3mis524/cyberpunk)).
+no `nvim-lspconfig`), `lazy.nvim` for plugins, and my own colorscheme,
+[`cyberpunk`](https://github.com/Art3mis524/cyberpunk). Needs Neovim 0.12+.
 
 ## Quick start on a new machine
 
@@ -39,11 +39,34 @@ nvim
 
 (No git yet? Download the repo as a zip from GitHub instead; the script installs git.)
 
-Each script handles system packages, language servers, and the global `.clang-format`.
-See [Install scripts](#install-scripts) below for exactly what each does and doesn't cover.
-On any other distro/OS, install the equivalent packages listed in that section manually,
-then just run `nvim` (`lazy.nvim` bootstraps itself and reads `lazy-lock.json` for exact
-plugin versions).
+Each script handles system packages, language servers, plugins and the global
+`.clang-format`; see [Install scripts](#install-scripts) for exactly what each covers. On
+any other distro/OS, install the equivalent packages manually, then just run `nvim`
+(`lazy.nvim` bootstraps itself and reads `lazy-lock.json` for exact plugin versions).
+Afterwards, [`tests/smoke.lua`](#smoke-test) checks the machine is fully set up.
+
+## Layout
+
+```text
+init.lua                 loads the modules below, in order
+lua/config/
+  options.lua            editor options, clipboard (OSC 52 over SSH)
+  keybinds.lua           leader key and global keymaps
+  lazy.lua               lazy.nvim bootstrap, pinned to lazy-lock.json
+  lsp.lua                what all servers share: diagnostics, keymaps, format on save
+  jdtls.lua              client-side extras for Java (jdt:// files)
+  parsers.lua            treesitter parsers to keep installed
+lsp/<server>.lua         one file per language server, all enabled automatically
+lua/plugins/<area>.lua   plugin specs, grouped by purpose (ui, completion, git, ...)
+after/ftplugin/          per-filetype settings (2-space indent for html/json/jsonc)
+after/queries/cpp/       treesitter query override (C++ casts as keywords)
+scripts/                 install steps shared by the three install scripts
+tests/smoke.lua          checks that a machine is set up
+```
+
+To add a language server, add `lsp/<name>.lua` returning its config (copying from
+[nvim-lspconfig](https://github.com/neovim/nvim-lspconfig/tree/master/lsp) is the easy
+way), and install its binary in the install scripts.
 
 ## Leader key
 
@@ -57,7 +80,7 @@ plugin versions).
 |---|---|---|
 | `<leader>e` | n | Open netrw file explorer (`:Ex`) |
 | `Ctrl-\` | n | Toggle a docked terminal (right side, ~40% width) |
-| `<leader>lr` | n (LSP buffers) | Restart the LSP client(s) attached to the current buffer |
+| `<leader>lr` | n (LSP buffers) | Restart the LSP client(s) attached to the current buffer (`:lsp restart`) |
 
 ### Finding things (Telescope)
 
@@ -69,6 +92,9 @@ plugin versions).
 | `<leader>fh` | Help tags |
 | `<leader>ft` | Browse colorschemes with live preview |
 
+Telescope uses the native fzf sorter, so the query understands fzf syntax (`'exact`,
+`^prefix`, `suffix$`, `!not`).
+
 ### LSP (active only on buffers with an attached language server)
 
 | Key | Action |
@@ -77,12 +103,12 @@ plugin versions).
 | `gd` / `gD` | Go to definition / declaration |
 | `gi` | Go to implementation |
 | `go` | Go to type definition |
-| `gr` | Find references |
+| `gr` | Find references (fires immediately, without waiting on Neovim's `grn`/`grr`/... defaults) |
 | `gs` | Signature help (also shown automatically while typing via `lsp_signature.nvim`) |
 | `gl` | Open diagnostic float for the current line |
 | `<F2>` / `<leader>rn` | Rename symbol |
 | `<F3>` / `<leader>f` | Format buffer |
-| `<F4>` / `<leader>ca` | Code actions — checks the whole current line, not just the exact cursor column |
+| `<F4>` / `<leader>ca` | Code actions for the whole current line, not just the exact cursor column |
 
 ### REST client (`hurl.nvim`, only in `.hurl` files)
 
@@ -94,6 +120,12 @@ plugin versions).
 | `<leader>hv` | n | Run the request under the cursor in verbose mode (full headers, timings) |
 | `<leader>hl` | n | Show the last response again |
 | `<leader>hm` | n | Toggle responses between a split and a popup |
+
+### Markdown
+
+| Key | Action |
+|---|---|
+| `<leader>p` | Toggle between rendered and raw markdown (`render-markdown.nvim`) |
 
 ### Multi-cursor (`multicursor.nvim`)
 
@@ -115,7 +147,6 @@ plugin versions).
 | `n` / `N` | Next / previous search match |
 | `:noh` | Clear search highlight |
 | `Ctrl-r` | Redo |
-| `-`/`:colorscheme <Tab>` | Not bound here — see `<leader>ft` above instead |
 
 ## Languages with LSP configured
 
@@ -124,13 +155,14 @@ Zig (`zls`), Nix (`nil_ls`), Rust (`rust_analyzer`), CMake (`cmake`), GLSL (`gls
 C3 (`c3lsp`), D (`serve_d`), JSON/JSONC (`jsonls`), Tailwind (`tailwindcss`), ESLint (`eslint`),
 Haskell (`hls`), Go (`gopls`), templ (`templ`), Java (`jdtls`).
 
-Format-on-save is enabled for every language except C and PHP (C++ is included — see
+Format-on-save is enabled for every language except C and PHP (C++ is included, see
 [Formatting](#formatting-clang-format) below).
 
 Indentation is 4 spaces everywhere (`lua/config/options.lua`) except HTML and JSON/JSONC,
-which use 2 (`after/ftplugin/html.lua`, `json.lua`, `jsonc.lua`). The formatters follow the buffer's
-setting, so saving re-indents a file to match. That includes existing files written with a
-different width. (Neovim's own SCSS settings use 2.)
+which use 2 (`after/ftplugin/html.lua`, `json.lua`, `jsonc.lua`). The formatters follow the
+buffer's setting, so saving re-indents a file to match, including existing files written
+with a different width. A project's `.editorconfig` overrides both. (Neovim's own SCSS
+settings use 2.)
 
 **Java notes:** `jdtls` is configured natively (no `nvim-jdtls` plugin). It finds the
 project root from `mvnw`/`gradlew`/`settings.gradle`/`.git` first, then
@@ -145,9 +177,9 @@ jdtls imports and indexes it. Formatting uses jdtls's built-in Eclipse formatter
 
 C/C++ formatting uses `clang-format`, configured via `.clang-format` files:
 
-- `~/.clang-format` (installed by `install.sh` from `assets/clang-format-global`) —
-  the default for any C/C++ project anywhere under your home directory, since
-  clang-format walks up parent directories looking for the nearest `.clang-format`.
+- `~/.clang-format` (installed by the install scripts from `assets/clang-format-global`)
+  is the default for any C/C++ project under your home directory, since clang-format
+  walks up parent directories looking for the nearest `.clang-format`.
 - A project can override it with its own `.clang-format` closer to the source files.
 
 Current style: Allman braces, namespace contents indented, 120-column limit, one
@@ -156,45 +188,51 @@ class-body functions collapse to one line but out-of-line definitions never do.
 
 `static_cast`/`reinterpret_cast`/`const_cast`/`dynamic_cast` are styled as keywords
 (bold, matching `if`/`throw`/etc.) rather than the function-call color the C++ grammar
-would otherwise give them — via a treesitter query override at
+would otherwise give them, via a treesitter query override at
 `after/queries/cpp/highlights.scm`.
 
 ## Theme
 
-Active colorscheme: [`cyberpunk`](https://github.com/Art3mis524/cyberpunk) (installed as
-a normal plugin dependency), currently on the `cyberpunkNeon` style variant. The install
-scripts always pull its latest commit rather than the one pinned in `lazy-lock.json`, so
+Active colorscheme: [`cyberpunk`](https://github.com/Art3mis524/cyberpunk), in its
+`cyberpunkNeon` style, with its own lualine theme for the statusline. The install scripts
+always pull its latest commit rather than the one pinned in `lazy-lock.json`, so
 re-running a script picks up theme changes; in an open nvim, `:Lazy update cyberpunk`
-does the same.
-Switch to the calmer variant any time with `:colorscheme cyberpunk`, or browse everything
-installed (several other themes are kept around purely for comparison) with `<leader>ft`.
+does the same. Switch to the calmer style any time with `:colorscheme cyberpunk`.
+
+`<leader>ft` browses every installed colorscheme with live preview. The extras in
+`lua/plugins/colorscheme.lua` are only there for comparison: they stay unloaded until
+previewed or picked.
+
+## Clipboard
+
+Yanks and puts use the system clipboard (`clipboard=unnamedplus`, through `wl-clipboard`
+on Wayland). Over SSH there's no clipboard tool, so yanks are sent to your local
+terminal's clipboard with OSC 52 instead, and `p` pastes from Neovim's own register
+(paste from the local clipboard with the terminal's paste key).
 
 ## Plugins
 
-| Plugin | Purpose |
-|---|---|
-| `Art3mis524/cyberpunk` | Active colorscheme |
-| `nvim-lualine/lualine.nvim` | Statusline |
-| `nvim-telescope/telescope.nvim` | Fuzzy finder |
-| `nvim-treesitter/nvim-treesitter` | Syntax highlighting/parsing |
-| `hrsh7th/nvim-cmp` + `cmp-nvim-lsp`/`cmp-buffer`/`cmp-path` | Autocomplete |
-| `L3MON4D3/LuaSnip` + `cmp_luasnip` | Snippets |
-| `ray-x/lsp_signature.nvim` | Live parameter hints while typing a call |
-| `lewis6991/gitsigns.nvim` | Git change markers in the sign column |
-| `tpope/vim-fugitive` | Git commands |
-| `jake-stewart/multicursor.nvim` | Multiple cursors |
-| `akinsho/toggleterm.nvim` | Docked terminal (`Ctrl-\`) |
-| `folke/ts-comments.nvim` | Treesitter-aware `gc`/`gcc` comment toggling |
-| `folke/which-key.nvim` | Keybind hints |
-| `m4xshen/hardtime.nvim` | Nudges away from inefficient motions |
-| `lukas-reineke/indent-blankline.nvim` | Indent guides |
-| `brenoprata10/nvim-highlight-colors` | Inline color previews for hex codes etc. |
-| `ojroques/vim-oscyank` | Clipboard over SSH |
-| `ThePrimeagen/vim-be-good` | Vim motion practice game |
-| `jellydn/hurl.nvim` | REST client: run HTTP requests from `.hurl` files (see below) |
-
-Several more colorschemes are installed purely for browsing via `<leader>ft` (see
-`lua/plugins/themes.lua`) — they're not active by default.
+| Plugin | Purpose | Spec |
+|---|---|---|
+| `Art3mis524/cyberpunk` | Active colorscheme | `colorscheme.lua` |
+| `nvim-lualine/lualine.nvim` | Statusline | `ui.lua` |
+| `folke/which-key.nvim` | Keybind hints | `ui.lua` |
+| `lukas-reineke/indent-blankline.nvim` | Indent guides | `ui.lua` |
+| `brenoprata10/nvim-highlight-colors` | Inline color previews for hex codes etc. | `ui.lua` |
+| `hrsh7th/nvim-cmp` + `cmp-nvim-lsp`/`cmp-buffer`/`cmp-path` | Autocomplete | `completion.lua` |
+| `L3MON4D3/LuaSnip` + `cmp_luasnip` | Snippets | `completion.lua` |
+| `ray-x/lsp_signature.nvim` | Live parameter hints while typing a call | `completion.lua` |
+| `nvim-telescope/telescope.nvim` + `telescope-fzf-native.nvim` | Fuzzy finder | `telescope.lua` |
+| `nvim-treesitter/nvim-treesitter` | Syntax highlighting/parsing | `treesitter.lua` |
+| `tpope/vim-fugitive` | Git commands | `git.lua` |
+| `lewis6991/gitsigns.nvim` | Git change markers in the sign column | `git.lua` |
+| `folke/ts-comments.nvim` | Treesitter-aware `gc`/`gcc` comment toggling | `editing.lua` |
+| `jake-stewart/multicursor.nvim` | Multiple cursors | `editing.lua` |
+| `akinsho/toggleterm.nvim` | Docked terminal (`Ctrl-\`) | `terminal.lua` |
+| `MeanderingProgrammer/render-markdown.nvim` | Rendered markdown in the buffer | `markdown.lua` |
+| `jellydn/hurl.nvim` | REST client: run HTTP requests from `.hurl` files (see below) | `hurl.lua` |
+| `m4xshen/hardtime.nvim` | Nudges away from inefficient motions | `practice.lua` |
+| `ThePrimeagen/vim-be-good` | Vim motion practice game | `practice.lua` |
 
 ## REST client (hurl)
 
@@ -218,8 +256,14 @@ outside Neovim with `hurl --test file.hurl`.
 
 ## Install scripts
 
-All three scripts are safe to re-run — every step checks before acting, so running one again
-after adding new language servers to `lsp.lua` just fills in whatever's newly missing.
+All three scripts are safe to re-run: every step checks before acting, so running one
+again after adding a language server just fills in whatever's newly missing. They share
+their common steps through `scripts/`:
+
+- `scripts/npm-packages.txt`: the npm language servers and tools, for all three scripts
+- `scripts/sync-plugins.lua` and `scripts/check-parsers.lua`: the headless Neovim steps
+  (plugins at their lockfile versions, then a check that every treesitter parser is in)
+- `scripts/lib.sh`: the bash helpers `install.sh` and `install-macos.sh` share
 
 ### `install.sh` (Arch-based Linux)
 
@@ -232,6 +276,10 @@ a stale database), so it also brings the rest of the system up to date. PATH add
 (`~/.zprofile`, `~/.bash_profile`, `~/.config/fish/conf.d/nvim-config.fish` for fish, or
 `~/.profile`) if not already present, so open a new terminal after running it.
 
+`./install.sh --check` installs nothing: it verifies that every pacman, AUR and npm
+package name and every download URL the script uses still exists, and exits non-zero if
+any doesn't.
+
 **What it installs:**
 
 - **Core (pacman):** git, base-devel, neovim, ripgrep, fd, unzip, curl, wget, cmake,
@@ -239,10 +287,12 @@ a stale database), so it also brings the rest of the system up to date. PATH add
   is present), rust-analyzer, go, gopls, lua-language-server, nodejs, npm, python,
   python-pipx, zls, haskell-language-server, jdk-openjdk, hurl, jq, wl-clipboard, xclip,
   a Nerd Font (Hermit Nerd)
-- **npm (global):** typescript, typescript-language-server, intelephense,
-  vscode-langservers-extracted, @tailwindcss/language-server, prettier and pnpm
-  (`typescript` is pinned to 6.x: 7.x is the native rewrite and has no `tsserver.js` for `ts_ls` to fall back on). If npm's global prefix isn't
-  writable (Arch's default is `/usr`), it's set to `~/.local` so no sudo is needed.
+- **npm (global):** everything in `scripts/npm-packages.txt`: typescript,
+  typescript-language-server, intelephense, vscode-langservers-extracted,
+  @tailwindcss/language-server, prettier and pnpm (`typescript` is pinned to 6.x: 7.x is
+  the native rewrite and has no `tsserver.js` for `ts_ls` to fall back on). If npm's
+  global prefix isn't writable (Arch's default is `/usr`), it's set to `~/.local` so no
+  sudo is needed.
 - **pipx:** cmake-language-server
 - **go install:** templ
 - **GitHub release binaries into `~/.local/bin`:** `glsl_analyzer` and `alejandra`
@@ -255,30 +305,24 @@ a stale database), so it also brings the rest of the system up to date. PATH add
 - **Copies `assets/clang-format-global` to `~/.clang-format`**
 - **Installs every plugin at the version pinned in `lazy-lock.json`** (`Lazy! restore`),
   except the `cyberpunk` theme, which is updated to its latest commit; builds LuaSnip's
-  `jsregexp`, installs the treesitter parsers listed in
-  `lua/config/parsers.lua`, and checks that none are missing
+  `jsregexp`, installs the treesitter parsers listed in `lua/config/parsers.lua`, and
+  checks that none are missing
 
 On WSL it also reminds you to install the Nerd Font on the Windows side, since
 Windows Terminal doesn't use fonts installed inside WSL.
 
 The script exits non-zero and lists anything that failed in its summary.
 
-**Testing note:** syntax-checked, and every pacman/AUR package name and GitHub release
-URL (plus the paths inside each archive) verified to exist, but not yet run end-to-end
-on an Arch machine.
-
 ### `install-macos.sh` (macOS)
 
 Run it from inside a clone of this repo, wherever that is: if the clone isn't at
 `~/.config/nvim` it gets symlinked there (any existing config there is moved to
 `~/.config/nvim.bak-<timestamp>` first). Installs Xcode Command Line Tools and Homebrew
-itself if either is missing (Xcode's installer is a GUI prompt — the script tells you to
+itself if either is missing (Xcode's installer is a GUI prompt; the script tells you to
 re-run once it finishes). Homebrew's `shellenv` and the PATH additions it needs (`llvm`'s
-keg-only bin dir for `clangd`, Go's `$GOPATH/bin` for `templ`, `~/.local/bin` for the
-servers below) get appended to `~/.zprofile` if not already present, so open a new
-terminal after running it. `openjdk` is keg-only as well (macOS's own `/usr/bin/java` is
-just a stub that asks you to install Java), so its bin dir is added too. After that,
-`nvim` is ready to use.
+keg-only bin dir for `clangd`, `openjdk`'s for `java`, Go's `$GOPATH/bin` for `templ`,
+`~/.local/bin` for the servers below) get appended to `~/.zprofile` if not already
+present, so open a new terminal after running it.
 
 **What it installs:**
 
@@ -287,38 +331,29 @@ just a stub that asks you to install Java), so its bin dir is added too. After t
   lua-language-server, node, python@3.13, zls, haskell-language-server,
   cmake-language-server, openjdk, jdtls, hurl, jq
 - **Cask:** font-hurmit-nerd-font (Hermit; Nerd Fonts publishes it as "Hurmit")
-- **npm (global):** same packages as `install.sh`
+- **npm (global):** `scripts/npm-packages.txt`, same as `install.sh`
 - **go install:** templ
 - **GitHub release binaries into `~/.local/bin`:** `glsl_analyzer`, `c3lsp` (Apple
   Silicon only), `serve-d` (Intel build; runs under Rosetta on Apple Silicon)
 - **`nil`**, from nixpkgs, only if `nix` is installed (it can't be built without it)
 - **Copies `assets/clang-format-global` to `~/.clang-format`**
-- **Installs every plugin at the version pinned in `lazy-lock.json`** (`Lazy! restore`),
-  except the `cyberpunk` theme, which is updated to its latest commit; builds LuaSnip's
-  `jsregexp`, installs the treesitter parsers listed in
-  `lua/config/parsers.lua`, and checks that none are missing
+- **Plugins and treesitter parsers**, the same as `install.sh`
 
-No clipboard package is needed — macOS's built-in `pbcopy`/`pbpaste` work with
+No clipboard package is needed: macOS's built-in `pbcopy`/`pbpaste` work with
 `unnamedplus` out of the box.
-
-The script exits non-zero and lists anything that failed in its summary, so a clean
-"Everything installed cleanly" means the setup is complete.
 
 ### `install-windows.ps1` (Windows)
 
-> **Untested on Windows.** So far the script has only been checked from macOS: it
-> parses cleanly and passes PowerShell 5.1 compatibility linting (PSScriptAnalyzer),
-> and every package name, download URL and archive layout it relies on was verified.
-> It has not had a complete end-to-end run on real Windows yet, so expect rough
-> edges and please report what breaks.
+> **Untested on Windows.** It has had no complete end-to-end run on real Windows yet,
+> so expect rough edges and please report what breaks. It's kept to plain ASCII and
+> Windows PowerShell 5.1 syntax, since a fresh Windows only has 5.1.
 
 Run it in a normal (non-admin) PowerShell from inside a clone of this repo: the clone is
 linked to `%LOCALAPPDATA%\nvim` with a directory junction (no admin or Developer Mode
 needed), and an existing config there is moved to `nvim.bak-<timestamp>` first. It sets
 the current user's execution policy to `RemoteSigned` (so Scoop's shims run), installs
 Scoop if missing, and adds `~\.local\bin` and Go's `bin` dir to the user PATH, so open a
-new terminal after running it. It's written for the Windows PowerShell 5.1 that ships
-with Windows, so no PowerShell 7 is needed.
+new terminal after running it.
 
 **What it installs:**
 
@@ -329,14 +364,13 @@ with Windows, so no PowerShell 7 is needed.
   a Python script), zls, jdtls, hurl, jq
 - **Scoop `java` bucket:** temurin-lts-jdk (sets `JAVA_HOME`; jdtls needs Java 21+)
 - **Scoop `nerd-fonts` bucket:** Hermit-NF (per-user, no admin)
-- **npm (global):** same packages as the other scripts
+- **npm (global):** `scripts/npm-packages.txt`, same as the other scripts
 - **uv tool:** cmake-language-server (uv fetches its own Python, so no Python installer
   is needed)
 - **go install:** gopls, templ
 - **GitHub release binaries into `~\.local\bin`:** `glsl_analyzer`, `c3lsp`, `serve-d`
 - **Copies `assets/clang-format-global` to `~\.clang-format`**
-- **Installs plugins at lockfile versions, builds LuaSnip's `jsregexp`, installs and
-  checks the treesitter parsers**, the same as the macOS script
+- **Plugins and treesitter parsers**, the same as the other scripts
 
 **Not installed:** `nil` and `alejandra` (no Windows builds) and
 `haskell-language-server` (install it with [GHCup](https://www.haskell.org/ghcup/) if you
@@ -352,15 +386,22 @@ Windows-specific bits in the config itself: toggleterm opens PowerShell instead 
 
 ## Smoke test
 
-`tests/smoke.lua` checks that a machine is actually set up, on any OS: no startup
-errors, every plugin installed, telescope-fzf-native and jsregexp built, every parser
-installed and loadable, every configured language server's command on PATH, and that
-`luals`, `ts_ls`, `clangd`, `gopls` and `jdtls` really attach to a sample file (jdtls
-gets up to 90 seconds, since it starts a JVM). It also checks `hurl` and `jq` are on PATH
-and presses `<leader>ha` in a sample `.hurl` file to send a real request to a tiny local
-server it starts (so no network is needed), confirming the formatted response appears.
-Finally it runs `prettier` and `pnpm`, and opens a sample `README.md` to confirm
-render-markdown.nvim renders it and long lines wrap between words rather than mid-word.
+`tests/smoke.lua` checks that a machine is actually set up, on any OS:
+
+- no startup errors; `cyberpunkNeon` active with the cyberpunk lualine theme; the
+  browse-only themes unloaded but loadable with `:colorscheme`
+- every plugin installed, telescope-fzf-native and jsregexp built, telescope using the
+  fzf sorter
+- every treesitter parser installed and loadable; 2-space indentation for html/json/jsonc
+  and 4 elsewhere
+- one enabled server per `lsp/*.lua` file, each with its command on PATH, and `luals`,
+  `ts_ls`, `clangd`, `gopls` and `jdtls` really attaching to a sample file (jdtls gets
+  up to 90 seconds, since it starts a JVM), with this config's keymaps
+- `hurl` and `jq` on PATH, and `<leader>ha` in a sample `.hurl` file sending a real
+  request to a tiny local server it starts (so no network is needed) and showing the
+  formatted response
+- `prettier` and `pnpm` running, render-markdown.nvim rendering a sample `README.md`
+  with long lines wrapping between words, and yanks using OSC 52 over SSH
 
 ```sh
 nvim --headless "+luafile tests/smoke.lua"

@@ -3,11 +3,13 @@
 --
 --     nvim --headless "+luafile tests/smoke.lua"
 --
--- Checks startup errors, plugins, compiled plugin libraries, treesitter
--- parsers, that every configured language server's command is on PATH, that
--- a few servers really attach to a buffer, that hurl.nvim's <leader>ha
--- sends a request (to a local server) and shows the response, that prettier
--- and pnpm run, and that markdown files render and wrap at word boundaries.
+-- Checks startup errors, the colorscheme and statusline theme, plugins and
+-- their compiled libraries, treesitter parsers, per-filetype indentation,
+-- that every configured language server's command is on PATH, that a few
+-- servers really attach (with this config's keymaps), that hurl.nvim's
+-- <leader>ha sends a request (to a local server) and shows the response,
+-- that prettier and pnpm run, that markdown renders and wraps at word
+-- boundaries, and that copying works over SSH.
 -- Exits 0 when everything passes, 1 otherwise.
 --
 -- SMOKE_SKIP_SERVERS: comma-separated vim.lsp.config names that are expected
@@ -34,6 +36,17 @@ local messages = vim.api.nvim_exec2('messages', { output = true }).output
 check(vim.v.errmsg == '' and not messages:find('E%d+:'),
     'no startup errors' .. (vim.v.errmsg ~= '' and (' (' .. vim.v.errmsg .. ')') or ''))
 
+out('== theme')
+check(vim.g.colors_name == 'cyberpunkNeon', 'colorscheme is cyberpunkNeon (got ' .. tostring(vim.g.colors_name) .. ')')
+check(require('lualine').get_config().options.theme == 'cyberpunk', 'lualine uses the cyberpunk theme')
+-- Browse-only themes stay unloaded but are still found by :colorscheme
+-- (and so by the <leader>ft picker).
+local tokyonight = require('lazy.core.config').plugins['tokyonight.nvim']
+check(tokyonight and not tokyonight._.loaded, 'browse-only themes are lazy-loaded')
+check(pcall(vim.cmd.colorscheme, 'tokyonight') and vim.startswith(vim.g.colors_name or '', 'tokyonight'),
+    ':colorscheme loads a lazy theme on demand')
+vim.cmd.colorscheme('cyberpunkNeon')
+
 out('== plugins')
 local plugins = require('lazy').plugins()
 local not_installed = {}
@@ -54,6 +67,9 @@ check(fzf_dir and vim.fn.filereadable(fzf_dir .. '/build/libfzf.' .. (is_win and
 local luasnip_dir = plugin_dir('LuaSnip')
 check(luasnip_dir and #vim.fn.glob(luasnip_dir .. '/deps/luasnip-jsregexp.*', false, true) > 0,
     'LuaSnip jsregexp built')
+require('lazy').load({ plugins = { 'telescope.nvim' } })
+check(pcall(function() return require('telescope').extensions.fzf.native_fzf_sorter end),
+    'telescope loads the fzf-native sorter')
 
 out('== treesitter parsers')
 local have = {}
@@ -63,13 +79,21 @@ for _, p in ipairs(require('config.parsers')) do
     check(ok, 'parser ' .. p .. ' installed and loadable')
 end
 
+out('== indentation')
+for ft, width in pairs({ html = 2, json = 2, jsonc = 2, typescript = 4, lua = 4 }) do
+    vim.cmd('enew | setfiletype ' .. ft)
+    check(vim.bo.shiftwidth == width and vim.bo.expandtab, ft .. ' indents with ' .. width .. ' spaces')
+    vim.cmd('bwipeout!')
+end
+
 out('== language server commands')
 local servers = {}
----@diagnostic disable-next-line: invisible
-for name in pairs(vim.lsp.config._configs) do
-    if name ~= '*' then table.insert(servers, name) end
+for _, config in ipairs(vim.lsp.get_configs({ enabled = true })) do
+    table.insert(servers, config.name)
 end
 table.sort(servers)
+check(#servers == #vim.fn.globpath(vim.fn.stdpath('config'), 'lsp/*.lua', false, true),
+    #servers .. ' servers enabled, one per lsp/*.lua file')
 -- Servers whose cmd is a function (so the executable can't be read off it).
 local function_cmd_exes = { jdtls = 'jdtls' }
 local runnable = {}
@@ -106,8 +130,15 @@ for _, s in ipairs(samples) do
             return #vim.lsp.get_clients({ bufnr = buf, name = s.server }) > 0
         end, 200)
         check(attached, s.server .. ' attached to ' .. s.file)
+        if attached and s.server == 'luals' then
+            local gr = vim.fn.maparg('gr', 'n', false, true)
+            check(gr.buffer == 1 and gr.nowait == 1, 'LSP keymaps set (gr is buffer-local and nowait)')
+        end
     end
 end
+-- Stop servers politely first, so they don't report being killed.
+for _, client in ipairs(vim.lsp.get_clients()) do client:stop() end
+vim.wait(5000, function() return #vim.lsp.get_clients() == 0 end, 100)
 for _, client in ipairs(vim.lsp.get_clients()) do client:stop(true) end
 
 out('== hurl (REST client)')
@@ -174,6 +205,15 @@ local rendered = vim.wait(5000, function()
     return #vim.api.nvim_buf_get_extmarks(md_buf, ns, 0, -1, {}) > 0
 end, 100)
 check(rendered, 'render-markdown.nvim rendered the buffer')
+
+out('== clipboard over SSH')
+-- A child nvim with SSH_TTY set should copy through OSC 52 and paste from
+-- its own register.
+local res = vim.system({ vim.v.progpath, '--headless',
+    '+lua vim.fn.setline(1, "copied") vim.cmd("normal! yy") io.stdout:write(vim.g.clipboard.name .. "|" .. vim.fn.getreg("+"))',
+    '+qa!' }, { env = { SSH_TTY = '/dev/pts/0' }, text = true }):wait(20000)
+check(res.code == 0 and res.stdout:find('OSC 52', 1, true) and res.stdout:find('|copied', 1, true),
+    'yank uses OSC 52 over SSH and paste reads it back')
 
 out('')
 out(failures == 0 and 'SMOKE TEST PASSED' or ('SMOKE TEST FAILED: ' .. failures .. ' check(s)'))
