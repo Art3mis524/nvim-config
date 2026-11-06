@@ -1,0 +1,10 @@
+# Global npm packages, installed by all three install scripts.
+# One per line; anything after # is ignored.
+
+typescript@6                  # tsserver.js for ts_ls (7.x is the native rewrite and has none)
+typescript-language-server    # ts_ls
+intelephense                  # PHP
+vscode-langservers-extracted  # html, cssls, jsonls, eslint
+@tailwindcss/language-server  # tailwindcss
+prettier                      # formatter for web files, markdown, json, yaml
+pnpm                          # package manager for JS projects

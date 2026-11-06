@@ -224,14 +224,9 @@ if (-not (Install-ScoopApp 'nerd-fonts/Hermit-NF')) {
 Note 'Installing npm-based language servers'
 # ---------------------------------------------------------------------------
 if (Test-Command 'npm') {
-    $NpmPkgs = @(
-        'typescript@6', 'typescript-language-server',  # 7.x has no tsserver.js; see ts_ls in lsp.lua
-        'intelephense',
-        'vscode-langservers-extracted',
-        '@tailwindcss/language-server',
-        'prettier',                                    # formatter for web files, markdown, json, yaml
-        'pnpm'                                         # package manager for JS projects
-    )
+    # The same list as the other install scripts; # starts a comment.
+    $NpmPkgs = Get-Content (Join-Path $ScriptDir 'scripts\npm-packages.txt') |
+        ForEach-Object { ($_ -replace '#.*', '').Trim() } | Where-Object { $_ }
     # npm 12+ skips install scripts unless allowed. pnpm's swaps its
     # placeholder launcher for the native binary.
     foreach ($pkg in $NpmPkgs) {
@@ -341,48 +336,25 @@ Note 'Installing Neovim plugins and treesitter parsers'
 # ---------------------------------------------------------------------------
 $SyncLog = Join-Path $env:TEMP 'nvim-install-sync.log'
 if (Test-Command 'nvim') {
-    # restore installs each plugin at the version pinned in lazy-lock.json, so
-    # a fresh machine matches the tested setup. The cyberpunk theme is the
-    # exception: it's my own, so it's then updated to its latest commit.
-    # Headless nvim exits 0 even if :Lazy doesn't exist, so fail explicitly
-    # when lazy.nvim never loaded.
-    # LuaSnip is rebuilt only when its jsregexp library is missing (a failed
-    # earlier build): rebuilding overwrites the library in place, which crashes
-    # nvim on exit once LuaSnip has loaded it.
-    & nvim --headless "+lua if not package.loaded['lazy'] then vim.cmd('cquit 1') end" `
-        '+Lazy! restore' '+Lazy! update cyberpunk' `
-        "+lua local d = require('lazy.core.config').plugins.LuaSnip.dir if #vim.fn.glob(d .. '/deps/luasnip-jsregexp.*', false, true) == 0 then vim.cmd('Lazy! build LuaSnip') end" `
-        '+qa' 2>&1 | Out-File -Encoding utf8 $SyncLog
+    # Both steps are Lua scripts in scripts/, shared with the other install
+    # scripts: plugins at their lockfile versions (plus the latest cyberpunk
+    # theme and LuaSnip's jsregexp), then a check that every treesitter
+    # parser got installed.
+    & nvim --headless "+lua dofile(vim.fn.stdpath('config') .. '/scripts/sync-plugins.lua')" 2>&1 |
+        Out-File -Encoding utf8 $SyncLog
     if ($LASTEXITCODE -eq 0) { Ok 'plugins installed at lockfile versions' } else {
-        Warn "plugin install reported an issue - see $SyncLog"
+        Warn "plugin install reported a problem - see $SyncLog"
         $Failed.Add('lazy.nvim plugin install')
     }
 
-    # The treesitter config installs missing parsers at startup (blocking when
-    # headless), so one more start fills any gaps; then check none are missing.
-    # The check lives in a temp Lua file: PowerShell 5.1 mangles quoting in
-    # long multi-line native arguments.
-    $parserCheck = (Join-Path $TmpDl 'missing-parsers') -replace '\\', '/'
-    $checkLua = Join-Path $TmpDl 'check-parsers.lua'
-    @"
-local have = {}
-for _, p in ipairs(require('nvim-treesitter.config').get_installed()) do have[p] = true end
-local miss = {}
-for _, p in ipairs(require('config.parsers')) do if not have[p] then table.insert(miss, p) end end
-vim.fn.writefile({ table.concat(miss, ' ') }, '$parserCheck')
-"@ | Out-File -Encoding ascii $checkLua
-    & nvim --headless "+luafile $($checkLua -replace '\\', '/')" '+qa' 2>&1 | Out-File -Encoding utf8 -Append $SyncLog
-    if (-not (Test-Path $parserCheck)) {
-        Warn "could not check treesitter parsers - see $SyncLog"
-        $Failed.Add('treesitter parser check')
+    $parserCheck = & nvim --headless "+lua dofile(vim.fn.stdpath('config') .. '/scripts/check-parsers.lua')" 2>&1 | Out-String
+    $parserCheck | Out-File -Encoding utf8 -Append $SyncLog
+    if ($LASTEXITCODE -eq 0) {
+        Ok 'treesitter parsers installed'
     } else {
-        $missing = (Get-Content $parserCheck -Raw).Trim()
-        if ($missing) {
-            Warn "treesitter parsers missing: $missing - see $SyncLog"
-            $Failed.Add("treesitter parsers: $missing")
-        } else {
-            Ok 'treesitter parsers installed'
-        }
+        if ($parserCheck -match 'missing parsers: (.*)') { $missing = $Matches[1].Trim() } else { $missing = 'parser check failed' }
+        Warn "treesitter: $missing - see $SyncLog"
+        $Failed.Add("treesitter: $missing")
     }
 } else {
     Warn 'nvim not found even after package install - something went wrong above'

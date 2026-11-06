@@ -1,6 +1,6 @@
--- Treesitter parsers to keep installed. Shared by plugins/treesitter.lua, the
--- install scripts and tests/smoke.lua so they can install and verify them.
--- (jsonc files use the json parser, so it isn't listed separately.)
+-- Treesitter parsers to keep installed: plugins/treesitter.lua installs them,
+-- scripts/check-parsers.lua (the install scripts) and tests/smoke.lua verify
+-- them. (jsonc files use the json parser, so it isn't listed separately.)
 return {
     'typescript', 'tsx', 'javascript',
     'html', 'css', 'json',
