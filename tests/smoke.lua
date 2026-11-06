@@ -151,9 +151,15 @@ end
 
 out('== command-line tools')
 for _, tool in ipairs({ 'prettier', 'pnpm' }) do
-    local ran = vim.fn.executable(tool) == 1
-        and vim.system({ tool, '--version' }, { text = true }):wait().code == 0
-    check(ran, tool .. ' on PATH and runs')
+    -- Run it directly rather than through a shell, the way editors and other
+    -- tools do. vim.system raises (e.g. ENOEXEC) when the file can't be
+    -- executed at all, so catch that and report it as a failure.
+    local ok, res = pcall(function()
+        return vim.system({ tool, '--version' }, { text = true }):wait()
+    end)
+    local ran = ok and res.code == 0
+    check(ran, tool .. ' on PATH and runs'
+        .. (not ok and (' (' .. tostring(res):match('[^:]*:%s*[^\n]*$') .. ')') or ''))
 end
 
 out('== markdown')

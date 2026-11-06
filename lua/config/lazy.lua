@@ -12,6 +12,15 @@ if not (vim.uv or vim.loop).fs_stat(lazypath) then
         vim.fn.getchar()
         os.exit(1)
     end
+    -- The clone gets whatever stable is today; check out the commit pinned in
+    -- lazy-lock.json so a fresh install matches it (and doesn't rewrite it).
+    local ok, pinned = pcall(function()
+        local lock = vim.fn.readfile(vim.fn.stdpath("config") .. "/lazy-lock.json")
+        return vim.json.decode(table.concat(lock, "\n"))["lazy.nvim"].commit
+    end)
+    if ok and pinned then
+        vim.fn.system({ "git", "-C", lazypath, "checkout", "--quiet", pinned })
+    end
 end
 vim.opt.rtp:prepend(lazypath)
 

@@ -162,8 +162,11 @@ if command -v npm >/dev/null 2>&1; then
         prettier                                 # formatter for web files, markdown, json, yaml
         pnpm                                     # package manager for JS projects
     )
+    # npm 12+ skips install scripts unless allowed. pnpm's swaps its
+    # placeholder launcher for the native binary; without it, anything that
+    # runs pnpm directly (not through a shell) fails with ENOEXEC.
     for pkg in "${NPM_PKGS[@]}"; do
-        if npm install -g "$pkg" >/dev/null 2>&1; then
+        if npm install -g --allow-scripts=pnpm "$pkg" >/dev/null 2>&1; then
             ok "npm: $pkg"
         else
             warn "npm: $pkg failed to install"
@@ -306,8 +309,13 @@ if command -v nvim >/dev/null 2>&1; then
     # exception: it's my own, so it's then updated to its latest commit.
     # Headless nvim exits 0 even if :Lazy doesn't exist, so fail explicitly
     # when lazy.nvim never loaded.
+    # LuaSnip is rebuilt only when its jsregexp library is missing (a failed
+    # earlier build): rebuilding overwrites the library in place, which crashes
+    # nvim on exit once LuaSnip has loaded it.
     if nvim --headless "+lua if not package.loaded['lazy'] then vim.cmd('cquit 1') end" \
-            "+Lazy! restore" "+Lazy! update cyberpunk" "+Lazy! build LuaSnip" +qa >"$SYNC_LOG" 2>&1; then
+            "+Lazy! restore" "+Lazy! update cyberpunk" \
+            "+lua local d = require('lazy.core.config').plugins.LuaSnip.dir if #vim.fn.glob(d .. '/deps/luasnip-jsregexp.*', false, true) == 0 then vim.cmd('Lazy! build LuaSnip') end" \
+            +qa >"$SYNC_LOG" 2>&1; then
         ok "plugins installed at lockfile versions"
     else
         warn "plugin install reported an issue — see $SYNC_LOG"
