@@ -1,3 +1,8 @@
+-- Fuzzy finder, loaded on first use of one of its keys.
+local function picker(name, opts)
+    return function() require('telescope.builtin')[name](opts) end
+end
+
 return {
     'nvim-telescope/telescope.nvim',
     version = '*',
@@ -5,15 +10,18 @@ return {
         'nvim-lua/plenary.nvim',
         { 'nvim-telescope/telescope-fzf-native.nvim', build = 'make' },
     },
+    cmd = 'Telescope',
+    keys = {
+        { '<leader>ff', picker('find_files'), desc = 'Find files' },
+        { '<leader>fg', picker('live_grep'), desc = 'Live grep' },
+        { '<leader>fb', picker('buffers'), desc = 'Find buffers' },
+        { '<leader>fh', picker('help_tags'), desc = 'Help tags' },
+        { '<leader>ft', picker('colorscheme', { enable_preview = true }), desc = 'Browse colorschemes (live preview)' },
+    },
     config = function()
-        local builtin = require('telescope.builtin')
-
-        vim.keymap.set('n', '<leader>ff', builtin.find_files, { desc = 'Find files' })
-        vim.keymap.set('n', '<leader>fg', builtin.live_grep, { desc = 'Live grep' })
-        vim.keymap.set('n', '<leader>fb', builtin.buffers, { desc = 'Find buffers' })
-        vim.keymap.set('n', '<leader>fh', builtin.help_tags, { desc = 'Help tags' })
-        vim.keymap.set('n', '<leader>ft', function()
-            builtin.colorscheme({ enable_preview = true })
-        end, { desc = 'Browse colorschemes (live preview)' })
+        local telescope = require('telescope')
+        telescope.setup({})
+        -- Native fzf sorter: faster, and understands fzf syntax ('exact ^prefix !not).
+        telescope.load_extension('fzf')
     end,
 }
