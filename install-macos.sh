@@ -159,6 +159,8 @@ if command -v npm >/dev/null 2>&1; then
         intelephense
         vscode-langservers-extracted
         "@tailwindcss/language-server"
+        prettier                                 # formatter for web files, markdown, json, yaml
+        pnpm                                     # package manager for JS projects
     )
     for pkg in "${NPM_PKGS[@]}"; do
         if npm install -g "$pkg" >/dev/null 2>&1; then

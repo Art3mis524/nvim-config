@@ -228,7 +228,9 @@ if (Test-Command 'npm') {
         'typescript@6', 'typescript-language-server',  # 7.x has no tsserver.js; see ts_ls in lsp.lua
         'intelephense',
         'vscode-langservers-extracted',
-        '@tailwindcss/language-server'
+        '@tailwindcss/language-server',
+        'prettier',                                    # formatter for web files, markdown, json, yaml
+        'pnpm'                                         # package manager for JS projects
     )
     foreach ($pkg in $NpmPkgs) {
         npm install -g $pkg *> $null

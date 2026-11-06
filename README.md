@@ -229,8 +229,8 @@ moved to `~/.config/nvim.bak-<timestamp>` first). It calls `sudo` itself only fo
 pacman step, which runs `pacman -Syu` (Arch doesn't support installing packages against
 a stale database), so it also brings the rest of the system up to date. PATH additions
 (`~/.local/bin`, Go's `$GOPATH/bin`) are appended to your login shell's profile
-(`~/.zprofile`, `~/.bash_profile` or `~/.profile`) if not already present, so open a new
-terminal after running it.
+(`~/.zprofile`, `~/.bash_profile`, `~/.config/fish/conf.d/nvim-config.fish` for fish, or
+`~/.profile`) if not already present, so open a new terminal after running it.
 
 **What it installs:**
 
@@ -239,8 +239,9 @@ terminal after running it.
   is present), rust-analyzer, go, gopls, lua-language-server, nodejs, npm, python,
   python-pipx, zls, haskell-language-server, jdk-openjdk, hurl, jq, wl-clipboard, xclip,
   a Nerd Font (Hermit Nerd)
-- **npm (global):** same five packages as `install-macos.sh` (`typescript` is pinned to
-  6.x: 7.x is the native rewrite and has no `tsserver.js` for `ts_ls` to fall back on). If npm's global prefix isn't
+- **npm (global):** typescript, typescript-language-server, intelephense,
+  vscode-langservers-extracted, @tailwindcss/language-server, prettier and pnpm
+  (`typescript` is pinned to 6.x: 7.x is the native rewrite and has no `tsserver.js` for `ts_ls` to fall back on). If npm's global prefix isn't
   writable (Arch's default is `/usr`), it's set to `~/.local` so no sudo is needed.
 - **pipx:** cmake-language-server
 - **go install:** templ
@@ -286,7 +287,7 @@ just a stub that asks you to install Java), so its bin dir is added too. After t
   lua-language-server, node, python@3.13, zls, haskell-language-server,
   cmake-language-server, openjdk, jdtls, hurl, jq
 - **Cask:** font-hurmit-nerd-font (Hermit; Nerd Fonts publishes it as "Hurmit")
-- **npm (global):** same five packages as `install.sh`
+- **npm (global):** same packages as `install.sh`
 - **go install:** templ
 - **GitHub release binaries into `~/.local/bin`:** `glsl_analyzer`, `c3lsp` (Apple
   Silicon only), `serve-d` (Intel build; runs under Rosetta on Apple Silicon)
@@ -328,7 +329,7 @@ with Windows, so no PowerShell 7 is needed.
   a Python script), zls, jdtls, hurl, jq
 - **Scoop `java` bucket:** temurin-lts-jdk (sets `JAVA_HOME`; jdtls needs Java 21+)
 - **Scoop `nerd-fonts` bucket:** Hermit-NF (per-user, no admin)
-- **npm (global):** same five packages as the other scripts
+- **npm (global):** same packages as the other scripts
 - **uv tool:** cmake-language-server (uv fetches its own Python, so no Python installer
   is needed)
 - **go install:** gopls, templ
@@ -358,6 +359,8 @@ installed and loadable, every configured language server's command on PATH, and 
 gets up to 90 seconds, since it starts a JVM). It also checks `hurl` and `jq` are on PATH
 and presses `<leader>ha` in a sample `.hurl` file to send a real request to a tiny local
 server it starts (so no network is needed), confirming the formatted response appears.
+Finally it runs `prettier` and `pnpm`, and opens a sample `README.md` to confirm
+render-markdown.nvim renders it and long lines wrap between words rather than mid-word.
 
 ```sh
 nvim --headless "+luafile tests/smoke.lua"

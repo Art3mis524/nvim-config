@@ -38,10 +38,14 @@ if [ ! -f "$SCRIPT_DIR/init.lua" ]; then
 fi
 
 # PATH additions go in the login-shell profile, matching whichever shell the
-# user actually logs in with.
-case "$(basename "${SHELL:-bash}")" in
+# user actually logs in with. That's read from the passwd entry rather than
+# $SHELL, which can be stale. fish doesn't read POSIX profiles, so it gets a
+# conf.d snippet instead.
+LOGIN_SHELL="$(getent passwd "$USER" 2>/dev/null | cut -d: -f7)"
+case "$(basename "${LOGIN_SHELL:-${SHELL:-bash}}")" in
     zsh)  PROFILE="$HOME/.zprofile" ;;
     bash) PROFILE="$HOME/.bash_profile" ;;
+    fish) PROFILE="${XDG_CONFIG_HOME:-$HOME/.config}/fish/conf.d/nvim-config.fish" ;;
     *)    PROFILE="$HOME/.profile" ;;
 esac
 
@@ -51,6 +55,16 @@ append_once() {
     mkdir -p "$(dirname "$file")"
     touch "$file"
     grep -qxF "$line" "$file" || echo "$line" >> "$file"
+}
+
+# Puts a directory on PATH for future shells (in the profile's own syntax)
+# and for the rest of this script.
+add_to_path() {
+    case "$PROFILE" in
+        *.fish) append_once "fish_add_path -g \"$1\"" "$PROFILE" ;;
+        *)      append_once "export PATH=\"$1:\$PATH\"" "$PROFILE" ;;
+    esac
+    export PATH="$1:$PATH"
 }
 
 # ---------------------------------------------------------------------------
@@ -109,8 +123,7 @@ fi
 # ~/.local/bin holds npm globals, pipx apps and the release binaries below.
 LOCAL_BIN="$HOME/.local/bin"
 mkdir -p "$LOCAL_BIN"
-append_once "export PATH=\"$LOCAL_BIN:\$PATH\"" "$PROFILE"
-export PATH="$LOCAL_BIN:$PATH"
+add_to_path "$LOCAL_BIN"
 
 # ---------------------------------------------------------------------------
 note "Installing npm-based language servers"
@@ -127,6 +140,8 @@ if command -v npm >/dev/null 2>&1; then
         intelephense
         vscode-langservers-extracted
         "@tailwindcss/language-server"
+        prettier                                 # formatter for web files, markdown, json, yaml
+        pnpm                                     # package manager for JS projects
     )
     for pkg in "${NPM_PKGS[@]}"; do
         if npm install -g "$pkg" >/dev/null 2>&1; then
@@ -163,8 +178,7 @@ note "Installing templ (go install)"
 if command -v go >/dev/null 2>&1; then
     if go install github.com/a-h/templ/cmd/templ@latest >/dev/null 2>&1; then
         GOBIN="$(go env GOPATH)/bin"
-        append_once "export PATH=\"$GOBIN:\$PATH\"" "$PROFILE"
-        export PATH="$GOBIN:$PATH"
+        add_to_path "$GOBIN"
         ok "templ (installed to $GOBIN, added to PATH)"
     else
         warn "templ failed to install"

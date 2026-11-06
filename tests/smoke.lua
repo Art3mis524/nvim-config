@@ -5,9 +5,10 @@
 --
 -- Checks startup errors, plugins, compiled plugin libraries, treesitter
 -- parsers, that every configured language server's command is on PATH, that
--- a few servers really attach to a buffer, and that hurl.nvim's <leader>ha
--- sends a request (to a local server) and shows the response. Exits 0 when
--- everything passes, 1 otherwise.
+-- a few servers really attach to a buffer, that hurl.nvim's <leader>ha
+-- sends a request (to a local server) and shows the response, that prettier
+-- and pnpm run, and that markdown files render and wrap at word boundaries.
+-- Exits 0 when everything passes, 1 otherwise.
 --
 -- SMOKE_SKIP_SERVERS: comma-separated vim.lsp.config names that are expected
 -- to be missing on this machine (e.g. "nil_ls,hls" on Windows).
@@ -147,6 +148,26 @@ if have_hurl then
     check(shown, '<leader>ha sent a request and showed the formatted response')
     server:close()
 end
+
+out('== command-line tools')
+for _, tool in ipairs({ 'prettier', 'pnpm' }) do
+    local ran = vim.fn.executable(tool) == 1
+        and vim.system({ tool, '--version' }, { text = true }):wait().code == 0
+    check(ran, tool .. ' on PATH and runs')
+end
+
+out('== markdown')
+local md = tmp .. '/README.md'
+vim.fn.writefile({ '# Title', '', '- [ ] a checkbox', '', '```lua', 'print(1)', '```' }, md)
+vim.cmd.edit(vim.fn.fnameescape(md))
+local md_buf = vim.api.nvim_get_current_buf()
+check(vim.wo.wrap and vim.wo.linebreak and vim.wo.breakindent,
+    'wrap, linebreak and breakindent set (lines break between words)')
+local ns = vim.api.nvim_create_namespace('render-markdown.nvim')
+local rendered = vim.wait(5000, function()
+    return #vim.api.nvim_buf_get_extmarks(md_buf, ns, 0, -1, {}) > 0
+end, 100)
+check(rendered, 'render-markdown.nvim rendered the buffer')
 
 out('')
 out(failures == 0 and 'SMOKE TEST PASSED' or ('SMOKE TEST FAILED: ' .. failures .. ' check(s)'))
