@@ -30,6 +30,7 @@
   "nvim-treesitter": { "branch": "main", "commit": "f603a2f4da48728f80257fb5fbb90145fd1dc173" },
   "nvim-web-devicons": { "branch": "master", "commit": "58447c1fca354bbf184425e4a8d01deecbd6f3c4" },
   "plenary.nvim": { "branch": "master", "commit": "74b06c6c75e4eeb3108ec01852001636d85a932b" },
+  "render-markdown.nvim": { "branch": "main", "commit": "8e8795368391036643b622875a6da6a51bcd33f4" },
   "shades-of-purple.vim": { "branch": "master", "commit": "e806d38190a6a2e8b9244824c2953d6567f141f3" },
   "solarized.nvim": { "branch": "main", "commit": "a8085e29883ddcfb39bd46197eb32ef00df05368" },
   "sonokai": { "branch": "master", "commit": "b023c5280b16fe2366f5e779d8d2756b3e5ee9c3" },
